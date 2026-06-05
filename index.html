@@ -194,8 +194,9 @@
 
             <div class="p-4 border-t border-slate-800 bg-slate-950/30">
                 <div class="mb-4 px-2">
-                    <span id="syncIndicatorAdmin" class="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
-                        <i class="fas fa-circle text-[8px]"></i> Terhubung Cloud
+                    <!-- MODIFIKASI: Default neutral status, dynamic updates prevent mismatch seen in image_7dc07d.png -->
+                    <span id="syncIndicatorAdmin" class="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-500 animate-pulse">
+                        <i class="fas fa-circle-notch fa-spin text-[8px]"></i> Menghubungkan...
                     </span>
                     <p class="text-[9px] text-slate-500 mt-1">T.A: <span id="lblTahunAjaranAdmin">2023-2024</span></p>
                 </div>
@@ -791,9 +792,26 @@
         const APPWRITE_DATABASE = '6a22a383001fc5099c0e';     
         const APPWRITE_COLLECTION = 'pengajuancuti';           
 
-        const { Client, Databases, ID, Query } = window.Appwrite;
-        const client = new Client().setEndpoint(APPWRITE_ENDPOINT).setProject(APPWRITE_PROJECT);
-        const databases = new Databases(client);
+        // MODIFIKASI: Mencegah crash fatal jika SDK CDN Appwrite gagal dimuat (Crash protection)
+        let databases = null;
+        let Query = null;
+        let ID = null;
+
+        function initAppwrite() {
+            try {
+                if (window.Appwrite) {
+                    const { Client, Databases: AppwriteDatabases, ID: AppwriteID, Query: AppwriteQuery } = window.Appwrite;
+                    const client = new Client().setEndpoint(APPWRITE_ENDPOINT).setProject(APPWRITE_PROJECT);
+                    databases = new AppwriteDatabases(client);
+                    ID = AppwriteID;
+                    Query = AppwriteQuery;
+                    return true;
+                }
+            } catch (err) {
+                console.error("Gagal menginisialisasi Appwrite SDK:", err);
+            }
+            return false;
+        }
 
         const REPORT_PIN_HASH = "U2lwYXR1OTU="; // PIN "Sipatu95"
 
@@ -867,7 +885,7 @@
         // HISTORY FETCHING & RENDERING
         // ==========================================
         async function syncOfflineDataToCloud() {
-            if (!isCloudConnected) return;
+            if (!isCloudConnected || !databases) return;
             
             const localData = getLocalStorageHistory();
             // Ambil semua data lokal yang ID-nya diawali dengan 'local_' (belum terunggah)
@@ -912,6 +930,18 @@
         }
 
         async function fetchHistory() {
+            // MODIFIKASI: Inisialisasi aman Appwrite sebelum melakukan call request
+            if (!databases) {
+                initAppwrite();
+            }
+
+            if (!databases) {
+                console.warn("Appwrite SDK tidak tersedia. Menggunakan database lokal.");
+                updateSyncStatus(false);
+                processRawData(getLocalStorageHistory());
+                return;
+            }
+
             try {
                 const response = await databases.listDocuments(APPWRITE_DATABASE, APPWRITE_COLLECTION, [Query.limit(100)]);
                 updateSyncStatus(true);
@@ -1348,7 +1378,7 @@
             if (!item) return;
 
             try {
-                if (isCloudConnected && !String(item.appwriteId).startsWith('local_')) {
+                if (isCloudConnected && databases && !String(item.appwriteId).startsWith('local_')) {
                     await databases.updateDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, item.appwriteId, {
                         lampiran: processedLampiranBase64
                     });
@@ -1472,7 +1502,7 @@
                     tgl_pengajuan: tglAjuISO
                 };
 
-                if (isCloudConnected && !String(item.appwriteId).startsWith('local_')) {
+                if (isCloudConnected && databases && !String(item.appwriteId).startsWith('local_')) {
                     await databases.updateDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, item.appwriteId, updatedPayload);
                     showNotification('Sukses', 'Rincian pengajuan berhasil diperbarui!', 'success');
                 } else {
@@ -1526,7 +1556,7 @@
             closeDeleteCutiModal();
 
             try {
-                if (isCloudConnected && !String(item.appwriteId).startsWith('local_')) {
+                if (isCloudConnected && databases && !String(item.appwriteId).startsWith('local_')) {
                     await databases.deleteDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, item.appwriteId);
                     showNotification('Sukses', 'Pengajuan berhasil dibatalkan & dihapus!', 'success');
                 } else {
@@ -1640,7 +1670,7 @@
             renderAdminHistory();
 
             try {
-                if (isCloudConnected && !String(leave.appwriteId).startsWith('local_')) {
+                if (isCloudConnected && databases && !String(leave.appwriteId).startsWith('local_')) {
                     await databases.updateDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, leave.appwriteId, { status: status });
                     showNotification('Sukses', `Status berhasil diubah menjadi ${status}!`, 'success');
                 } else {
@@ -1963,7 +1993,7 @@
                     document.getElementById('importProgressPercent').innerText = `${currentPercent}%`;
 
                     try {
-                        if (isCloudConnected) {
+                        if (isCloudConnected && databases) {
                             await databases.createDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, ID.unique(), payload);
                             await new Promise(resolve => setTimeout(resolve, 350));
                         } else {
@@ -2287,7 +2317,7 @@
             renderAdminHistory();
 
             try {
-                if (isCloudConnected && !String(leave.appwriteId).startsWith('local_')) {
+                if (isCloudConnected && databases && !String(leave.appwriteId).startsWith('local_')) {
                     await databases.updateDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, leave.appwriteId, { status: newStatus });
                     showNotification('Sukses', `Status berhasil diubah menjadi ${newStatus}!`, 'success');
                 } else {
@@ -2378,7 +2408,7 @@
             };
             
             try {
-                if (isCloudConnected) {
+                if (isCloudConnected && databases) {
                     await databases.createDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, ID.unique(), payload);
                     showNotification('Terkirim', 'Pengajuan berhasil masuk ke server cloud!', 'success');
                 } else {
@@ -2980,7 +3010,7 @@
                 saveLocalStorageHistory([]);
 
                 // 2. Kosongkan data di server Appwrite cloud (jika sedang online)
-                if (isCloudConnected) {
+                if (isCloudConnected && databases) {
                     try {
                         const response = await databases.listDocuments(APPWRITE_DATABASE, APPWRITE_COLLECTION, [Query.limit(100)]);
                         const deletePromises = response.documents.map(doc => 
@@ -3001,6 +3031,35 @@
             } catch (e) {
                 console.error("Gagal melakukan pemeliharaan database:", e);
                 showNotification("Gagal", "Terjadi kesalahan internal saat proses pembersihan.", "error");
+            }
+        }
+
+        function init() {
+            // Inisialisasi Flatpickr untuk kalender utama user
+            datePicker = flatpickr("#tglCuti", {
+                mode: "multiple",
+                dateFormat: "d/m/Y",
+                defaultDate: []
+            });
+
+            // Terapkan konfigurasi identitas sekolah ke UI
+            applySettingsToUI();
+            
+            // Render tabel pegawai master data
+            renderPegawaiTable();
+            
+            // MODIFIKASI: Menginisialisasi Appwrite dengan aman terlebih dahulu
+            initAppwrite();
+
+            // Tarik riwayat cuti dari Cloud / Local storage
+            fetchHistory();
+
+            // Atur label penanggalan hari ini secara dinamis
+            const today = new Date();
+            const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            const todayLabel = document.getElementById('todayDateLabel');
+            if (todayLabel) {
+                todayLabel.innerText = today.toLocaleDateString('id-ID', options);
             }
         }
 
