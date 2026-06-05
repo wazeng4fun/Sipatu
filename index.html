@@ -539,6 +539,10 @@
                     <label class="block text-[10px] font-bold text-slate-400 uppercase">Alasan Cuti</label>
                     <textarea id="editCutiAlasan" rows="2" class="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg text-sm mt-1 focus:border-indigo-500 outline-none"></textarea>
                 </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase">Tanggal Pengajuan</label>
+                    <input type="date" id="editCutiTglPengajuan" class="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg text-sm mt-1 focus:border-indigo-500 outline-none font-bold">
+                </div>
             </div>
             <div class="flex gap-3 mt-6 pt-4 border-t border-slate-100">
                 <button onclick="closeEditCuti()" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl text-sm hover:bg-slate-200 transition-all">Batal</button>
@@ -856,6 +860,11 @@
             document.getElementById('editCutiJenis').value = data.jeniscuti;
             document.getElementById('editCutiAlasan').value = data.alasancuti;
 
+            // Set Tanggal Pengajuan di form input tanggal
+            const rawTgl = data.tgl_pengajuan || data.$createdAt || new Date().toISOString();
+            const yyyymmdd = new Date(rawTgl).toISOString().split('T')[0];
+            document.getElementById('editCutiTglPengajuan').value = yyyymmdd;
+
             if (editCutiDatePicker) {
                 editCutiDatePicker.destroy();
             }
@@ -893,8 +902,10 @@
             const jenis = document.getElementById('editCutiJenis').value;
             const tgl = document.getElementById('editCutiTgl').value;
             const alasan = document.getElementById('editCutiAlasan').value.trim();
+            const tglPengajuan = document.getElementById('editCutiTglPengajuan').value;
 
             if(!tgl) return showNotification('Peringatan', 'Tanggal cuti wajib dipilih!', 'warning');
+            if(!tglPengajuan) return showNotification('Peringatan', 'Tanggal pengajuan wajib diisi!', 'warning');
 
             const item = allHistory.find(x => x.id === id);
             if (!item) return;
@@ -902,10 +913,14 @@
             showNotification('Memproses', 'Menyimpan rincian cuti...', 'info');
 
             try {
+                // Parse tanggal pengajuan yang baru ke dalam format ISO String
+                const tglAjuISO = new Date(tglPengajuan).toISOString();
+
                 const updatedPayload = {
                     jeniscuti: jenis,
                     periodecuti: tgl,
-                    alasancuti: alasan || "-"
+                    alasancuti: alasan || "-",
+                    tgl_pengajuan: tglAjuISO
                 };
 
                 if (isCloudConnected) {
@@ -918,6 +933,7 @@
                         localData[index].jeniscuti = jenis;
                         localData[index].periodecuti = tgl;
                         localData[index].alasancuti = alasan || "-";
+                        localData[index].tgl_pengajuan = tglAjuISO;
                         saveLocalStorageHistory(localData);
                     }
                     showNotification('Sukses (Offline)', 'Rincian diperbarui secara lokal.', 'success');
@@ -1160,6 +1176,31 @@
                 let successCount = 0;
                 let failureCount = 0;
 
+                // Memetakan indeks kolom secara dinamis berdasarkan baris Header pertama CSV
+                const headerLine = lines[0] ? lines[0].trim() : "";
+                const headers = parseCSVLine(headerLine).map(h => h.toLowerCase().replace(/["']/g, '').trim());
+
+                let idIdx = headers.findIndex(h => h.includes('id') || h.includes('pengajuan'));
+                let tglIdx = headers.findIndex(h => h.includes('tanggal') || h.includes('tgl') || h.includes('date'));
+                let namaIdx = headers.findIndex(h => h.includes('nama') || h.includes('name'));
+                let jabatanIdx = headers.findIndex(h => h.includes('jabatan') || h.includes('role') || h.includes('position'));
+                let jenisIdx = headers.findIndex(h => h.includes('jenis') || h.includes('kategori') || h.includes('type'));
+                let periodeIdx = headers.findIndex(h => h.includes('periode') || h.includes('range') || h.includes('tanggal cuti'));
+                let alasanIdx = headers.findIndex(h => h.includes('alasan') || h.includes('reason'));
+                let statusIdx = headers.findIndex(h => h.includes('status'));
+                let taIdx = headers.findIndex(h => h.includes('tahun') || h.includes('ta') || h.includes('ajaran'));
+
+                // Set indeks cadangan (fallback) jika nama header tidak cocok sempurna
+                if (idIdx === -1) idIdx = 0;
+                if (tglIdx === -1) tglIdx = 1;
+                if (namaIdx === -1) namaIdx = 2;
+                if (jabatanIdx === -1) jabatanIdx = 3;
+                if (jenisIdx === -1) jenisIdx = 4;
+                if (periodeIdx === -1) periodeIdx = 5;
+                if (alasanIdx === -1) alasanIdx = 7;
+                if (statusIdx === -1) statusIdx = 8;
+                if (taIdx === -1) taIdx = 9;
+
                 for (let idx = 0; idx < totalRows; idx++) {
                     if (shouldCancelImport) {
                         appendImportLog(`🚨 Proses dihentikan paksa oleh pengguna pada baris ke-${idx + 1}.`, "text-amber-500");
@@ -1169,17 +1210,21 @@
                     const rowData = validRows[idx];
                     const rowNum = idx + 1;
 
+                    // Mengambil dan memproses tanggal pengajuan secara aman dari CSV
+                    const rawTglValue = rowData[tglIdx] ? rowData[tglIdx].trim() : "";
+                    const processedTgl = formatISOFromString(rawTglValue);
+
                     // Buat payload dokumen cuti
                     const payload = { 
-                        id: rowData[0] || "RQ-" + Math.random().toString(36).substring(2, 7).toUpperCase(), 
-                        tgl_pengajuan: rowData[1] ? formatISOFromString(rowData[1]) : new Date().toISOString(),
-                        nama: rowData[2], 
-                        jabatan: rowData[3] || "-", 
-                        jeniscuti: rowData[4] || "Cuti Tahunan", 
-                        periodecuti: rowData[5] || "-", 
-                        alasancuti: rowData[7] || "-", 
-                        status: rowData[8] || "Pending",
-                        tahun_ajaran: rowData[9] || appSettings.tahunAjaran
+                        id: rowData[idIdx] || "RQ-" + Math.random().toString(36).substring(2, 7).toUpperCase(), 
+                        tgl_pengajuan: processedTgl,
+                        nama: rowData[namaIdx], 
+                        jabatan: rowData[jabatanIdx] || "-", 
+                        jeniscuti: rowData[jenisIdx] || "Cuti Tahunan", 
+                        periodecuti: rowData[periodeIdx] || "-", 
+                        alasancuti: rowData[alasanIdx] || "-", 
+                        status: rowData[statusIdx] || "Pending",
+                        tahun_ajaran: rowData[taIdx] || appSettings.tahunAjaran
                     };
 
                     // Update UI status progres per baris
@@ -1285,18 +1330,21 @@
         // Mengamankan parsing string tanggal ke format ISO yang valid dengan berbagai variasi format (DIPERBARUI - SANGAT KUAT)
         function formatISOFromString(str) {
             if (!str) return new Date().toISOString();
-            str = str.trim();
+            str = str.trim().replace(/["']/g, '');
             
             if (str.includes('T')) {
                 const d = new Date(str);
                 if (!isNaN(d.getTime())) return d.toISOString();
             }
-            
-            // Bersihkan potensi tanda kutip ganda atau tunggal
-            str = str.replace(/["']/g, '');
+
+            // Coba parsing bawaan JavaScript secara langsung
+            let standardParse = new Date(str);
+            if (!isNaN(standardParse.getTime())) {
+                return standardParse.toISOString();
+            }
 
             // Mengurai format DD/MM/YYYY, DD-MM-YYYY, atau DD.MM.YYYY (opsional dengan jam:menit:detik)
-            const slashPattern = /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})(?:\s+(\d{1,2}):(\d{1,2}):?(\d{1,2})?)?$/;
+            const slashPattern = /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/;
             const matchSlash = str.match(slashPattern);
             if (matchSlash) {
                 const day = parseInt(matchSlash[1], 10);
@@ -1310,7 +1358,7 @@
             }
 
             // Mengurai format YYYY-MM-DD atau YYYY/MM/DD (opsional dengan jam:menit:detik)
-            const ymdPattern = /^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2}):?(\d{1,2})?)?$/;
+            const ymdPattern = /^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/;
             const matchYmd = str.match(ymdPattern);
             if (matchYmd) {
                 const year = parseInt(matchYmd[1], 10);
@@ -1323,8 +1371,14 @@
                 if (!isNaN(d.getTime())) return d.toISOString();
             }
 
-            const parsed = new Date(str);
-            if (!isNaN(parsed.getTime())) return parsed.toISOString();
+            // Metode pencarian cadangan terakhir (space-split parsing)
+            const spaceParts = str.split(' ');
+            if (spaceParts.length > 0) {
+                let simpleParse = new Date(spaceParts[0]);
+                if (!isNaN(simpleParse.getTime())) {
+                    return simpleParse.toISOString();
+                }
+            }
 
             return new Date().toISOString();
         }
