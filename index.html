@@ -199,7 +199,7 @@
                     </span>
                     <p class="text-[9px] text-slate-500 mt-1">T.A: <span id="lblTahunAjaranAdmin">2023-2024</span></p>
                 </div>
-                <button onclick="logoutAdmin()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white rounded-xl text-xs font-bold transition-all">
+                <button onclick="logoutAdmin()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-500/10 text-rose-400 hover:bg-rose-50 hover:text-white rounded-xl text-xs font-bold transition-all">
                     <i class="fas fa-sign-out-alt"></i> Keluar Dashboard
                 </button>
             </div>
@@ -389,7 +389,7 @@
                 <div id="tabContent-pengaturan" class="hidden-force space-y-6 max-w-3xl">
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                         <div class="p-6 border-b border-slate-100 bg-slate-50/50">
-                            <h3 class="font-bold text-slate-800">Konfigurasi Identitas Sekolah</h3>
+                            <h3 class="font-bold text-slate-800">Konfigurasi Identitas Sekolah / Instansi</h3>
                         </div>
                         <div class="p-6 space-y-6">
                             <div>
@@ -401,12 +401,28 @@
                                 <input type="text" id="setTahunAjaran" maxlength="20" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all">
                                 <p class="text-[10px] text-slate-400 mt-2">*Perubahan tahun ajaran otomatis akan menyembunyikan data cuti tahun sebelumnya di tabel pengajuan (sebagai filter).</p>
                             </div>
-                            <!-- WA Admin Config Field -->
                             <div>
                                 <label class="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">No. WhatsApp Admin (Menerima Notifikasi Pengajuan)</label>
                                 <input type="text" id="setWaAdmin" placeholder="Contoh: 081234567890" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all">
                                 <p class="text-[10px] text-slate-400 mt-2">*Tujuan pengiriman pesan notifikasi otomatis saat karyawan melakukan pengajuan cuti.</p>
                             </div>
+                            
+                            <!-- FIELDS BARU (ALAMAT, EMAIL, TELP SEKOLAH) -->
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Alamat Lengkap Sekolah / Instansi</label>
+                                <textarea id="setAlamatSekolah" rows="2" placeholder="Contoh: Jl. Raya Parung-Ciputat No. 1, Bojongsari, Depok, Jawa Barat" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"></textarea>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Email Resmi Sekolah / Instansi</label>
+                                    <input type="email" id="setEmailSekolah" placeholder="Contoh: info@smklinkandmatch.sch.id" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">No. HP / Telpon Sekolah (Kop Surat)</label>
+                                    <input type="text" id="setTelpSekolah" placeholder="Contoh: (021) 7401234" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all">
+                                </div>
+                            </div>
+
                             <div>
                                 <label class="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Logo Instansi (PNG/JPG)</label>
                                 <div class="flex items-center gap-4">
@@ -438,7 +454,7 @@
     <!-- MODALS UTILITY                             -->
     <!-- ========================================== -->
 
-    <!-- Modal Upload Lampiran Foto Cuti (MODIFIKASI: LIVE CAMERA EXCLUSIVE) -->
+    <!-- Modal Upload Lampiran Foto Cuti (LIVE CAMERA EXCLUSIVE) -->
     <div id="uploadLampiranModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden-force items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden p-6 text-center animate-fade-in">
             <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
@@ -448,14 +464,11 @@
             <p class="text-xs text-slate-400 mb-4">Wajib ambil gambar fisik secara langsung melalui kamera. Sistem otomatis menyegel koordinat lokasi satelit.</p>
             
             <input type="hidden" id="uploadLampiranTargetId">
-            <!-- Fallback Hidden Native camera trigger (Strictly capture, no files) -->
             <input type="file" id="lampiranCaptureInput" accept="image/*" capture="environment" class="hidden" onchange="processFallbackCapturedLampiran(event)">
             
             <!-- Area Kamera Live Viewport / Pratinjau Foto -->
             <div class="mb-4 bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden relative flex flex-col items-center justify-center min-h-64 p-2">
-                <!-- Video stream element for true interactive browser webcam trigger -->
                 <video id="cameraStream" autoplay playsinline class="hidden"></video>
-                <!-- Image canvas preview -->
                 <img id="lampiranPreviewImg" class="max-h-60 rounded-xl object-contain shadow-inner hidden">
                 
                 <div id="lampiranPlaceholder" class="text-slate-300 flex flex-col items-center p-6">
@@ -472,7 +485,6 @@
             </div>
 
             <div class="flex gap-2">
-                <!-- Trigger Live Camera Stream inside web view first -->
                 <button id="btnStartCamera" onclick="startLiveCameraStream()" class="flex-1 py-3 bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">
                     <i class="fas fa-video"></i> Aktifkan Kamera
                 </button>
@@ -611,7 +623,7 @@
         </div>
     </div>
 
-    <!-- Modal Edit Pengajuan Cuti -->
+    <!-- Modal Edit Pengajuan Cuti (DENGAN TANGGAL PENGAJUAN INDONESIA FORMAT) -->
     <div id="editCutiModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[160] hidden-force items-center justify-center p-4">
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
             <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-edit text-indigo-600"></i> Edit Pengajuan Cuti</h3>
@@ -644,7 +656,8 @@
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-slate-400 uppercase">Tanggal Pengajuan</label>
-                    <input type="date" id="editCutiTglPengajuan" class="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg text-sm mt-1 focus:border-indigo-500 outline-none font-bold">
+                    <!-- MODIFIKASI: Menggunakan type text + flatpickr (Format ID) untuk menghindari kebingungan -->
+                    <input type="text" id="editCutiTglPengajuan" class="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg text-sm mt-1 focus:border-indigo-500 outline-none font-bold">
                 </div>
             </div>
             <div class="flex gap-3 mt-6 pt-4 border-t border-slate-100">
@@ -791,12 +804,15 @@
             namaSekolah: 'SMK Link and Match',
             tahunAjaran: '2023-2024',
             logoBase64: '',
-            waAdmin: '081234567890'
+            waAdmin: '081234567890',
+            alamatSekolah: 'Jl. Raya Parung-Ciputat No. 1, Bojongsari, Depok, Jawa Barat',
+            emailSekolah: 'info@smklinkandmatch.sch.id',
+            telpSekolah: '(021) 7401234'
         };
         
         let pegawaiList = JSON.parse(localStorage.getItem('SIPATU_PEGAWAI')) || [];
         let allHistory = [], filteredAdmin = [], filteredUser = [];
-        let datePicker, editCutiDatePicker, currentSubmissionId = "";
+        let datePicker, editCutiDatePicker, editCutiTglAjuDatePicker, currentSubmissionId = "";
         let currentPageAdmin = 1, currentPageUser = 1;
         const rowsPerPage = 5;
         let isAdminActive = false;
@@ -913,7 +929,26 @@
         // ==========================================
         async function init() {
             applySettingsToUI();
-            datePicker = flatpickr("#tglCuti", { mode: "multiple", dateFormat: "d/m/Y", minDate: "today" });
+            
+            // Menginisialisasi Flatpickr dengan event onChange untuk mencegah manipulasi tanggal di bawah 14 hari bagi cuti tahunan
+            datePicker = flatpickr("#tglCuti", { 
+                mode: "multiple", 
+                dateFormat: "d/m/Y",
+                onChange: function(selectedDates, dateStr, instance) {
+                    const j = document.getElementById('jenis').value;
+                    if (j === "Cuti Tahunan") {
+                        const minAllowed = new Date();
+                        minAllowed.setHours(0,0,0,0);
+                        minAllowed.setDate(minAllowed.getDate() + 14);
+                        
+                        const hasInvalid = selectedDates.some(date => date < minAllowed);
+                        if (hasInvalid) {
+                            showNotification('Batas Pengajuan', 'Cuti Tahunan Wajib di Ajukan selambat-lambatnya 14 hari sebelum cuti', 'warning');
+                            instance.clear();
+                        }
+                    }
+                }
+            });
             document.getElementById('todayDateLabel').innerText = humanizeDate(new Date());
             
             handleTypeChange();
@@ -937,6 +972,11 @@
             document.getElementById('setNamaSekolah').value = appSettings.namaSekolah;
             document.getElementById('setTahunAjaran').value = appSettings.tahunAjaran;
             document.getElementById('setWaAdmin').value = appSettings.waAdmin || '';
+            
+            // Masukkan data baru ke kolom setting UI
+            document.getElementById('setAlamatSekolah').value = appSettings.alamatSekolah || '';
+            document.getElementById('setEmailSekolah').value = appSettings.emailSekolah || '';
+            document.getElementById('setTelpSekolah').value = appSettings.telpSekolah || '';
             
             if(appSettings.logoBase64) {
                 document.getElementById('userLogo').src = appSettings.logoBase64;
@@ -1167,7 +1207,6 @@
                         <p class="text-xs font-bold text-slate-700">${i.displayPeriode} <span class="text-[9px] text-slate-400 font-normal">(${i.totalHari} Hari)</span></p>
                         <p class="text-[10px] text-slate-500 truncate max-w-[200px]" title="${i.alasancuti}">${i.alasancuti !== '-' ? i.alasancuti : 'Tanpa catatan'}</p>
                     </td>
-                    <!-- Desentralisasi Aksi ke Satu Tombol Kelola Terpadu -->
                     <td class="px-6 py-4 text-center">
                         <button onclick="openAdminActionModal('${i.id}')" class="bg-indigo-50 text-indigo-600 border border-indigo-150 hover:bg-indigo-600 hover:text-white px-3.5 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1.5 mx-auto uppercase tracking-wider">
                             <i class="fas fa-cog"></i> Kelola
@@ -1183,70 +1222,8 @@
         }
 
         // ==========================================
-        // INITIALIZATION & SETTINGS
+        // CAMERA & GPS CAPTURE SYSTEM
         // ==========================================
-        async function init() {
-            applySettingsToUI();
-            
-            // Menginisialisasi Flatpickr dengan event onChange untuk mencegah manipulasi tanggal di bawah 14 hari bagi cuti tahunan
-            datePicker = flatpickr("#tglCuti", { 
-                mode: "multiple", 
-                dateFormat: "d/m/Y",
-                onChange: function(selectedDates, dateStr, instance) {
-                    const j = document.getElementById('jenis').value;
-                    if (j === "Cuti Tahunan") {
-                        const minAllowed = new Date();
-                        minAllowed.setHours(0,0,0,0);
-                        minAllowed.setDate(minAllowed.getDate() + 14);
-                        
-                        const hasInvalid = selectedDates.some(date => date < minAllowed);
-                        if (hasInvalid) {
-                            showNotification('Batas Pengajuan', 'Cuti Tahunan Wajib di Ajukan selambat-lambatnya 14 hari sebelum cuti', 'warning');
-                            instance.clear();
-                        }
-                    }
-                }
-            });
-            document.getElementById('todayDateLabel').innerText = humanizeDate(new Date());
-            
-            handleTypeChange();
-
-            if(pegawaiList.length === 0) {
-                pegawaiList = [
-                    { id: 'PGW-10001', nama: 'Budi Santoso', jabatan: 'Guru Matematika', telepon: '08123456789' }
-                ];
-                localStorage.setItem('SIPATU_PEGAWAI', JSON.stringify(pegawaiList));
-            }
-
-            await fetchHistory(); 
-        }
-
-        function applySettingsToUI() {
-            document.getElementById('lblNamaSekolahUser').innerText = appSettings.namaSekolah;
-            document.getElementById('lblNamaSekolahAdmin').innerText = appSettings.namaSekolah;
-            document.getElementById('lblTahunAjaranUser').innerText = `TA: ${appSettings.tahunAjaran}`;
-            document.getElementById('lblTahunAjaranAdmin').innerText = appSettings.tahunAjaran;
-            
-            document.getElementById('setNamaSekolah').value = appSettings.namaSekolah;
-            document.getElementById('setTahunAjaran').value = appSettings.tahunAjaran;
-            document.getElementById('setWaAdmin').value = appSettings.waAdmin || '';
-            
-            if(appSettings.logoBase64) {
-                document.getElementById('userLogo').src = appSettings.logoBase64;
-                document.getElementById('userLogo').classList.remove('hidden');
-                document.getElementById('userIconFallback').classList.add('hidden-force');
-                
-                document.getElementById('adminLogo').src = appSettings.logoBase64;
-                document.getElementById('adminLogo').classList.remove('hidden');
-                document.getElementById('adminIconFallback').classList.add('hidden-force');
-                
-                document.getElementById('previewLogo').src = appSettings.logoBase64;
-                document.getElementById('previewLogo').classList.remove('hidden');
-                document.getElementById('previewFallback').classList.add('hidden-force');
-            }
-        }
-
-        // MEMULAI KAMERA LIVE WEB-VIEW (BUKAN DUPLIKASI APPLY SETTINGS)
         async function startLiveCameraStream() {
             const video = document.getElementById('cameraStream');
             const placeholder = document.getElementById('lampiranPlaceholder');
@@ -1330,7 +1307,6 @@
             if (video) video.srcObject = null;
         }
 
-        // Fallback untuk perangkat non-WebRTC (Memaksa Kamera Native)
         function processFallbackCapturedLampiran(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1381,7 +1357,6 @@
             ctx.font = "bold 11px 'Plus Jakarta Sans', sans-serif";
             ctx.textAlign = "left";
 
-            // Format Tanggal Indonesia yang Akurat
             const skrg = new Date();
             const formatTgl = skrg.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
             const formatWaktu = skrg.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -1538,19 +1513,25 @@
             document.getElementById('editCutiJenis').value = data.jeniscuti;
             document.getElementById('editCutiAlasan').value = data.alasancuti;
 
-            const rawTgl = data.tgl_pengajuan || data.$createdAt || new Date().toISOString();
-            const yyyymmdd = new Date(rawTgl).toISOString().split('T')[0];
-            document.getElementById('editCutiTglPengajuan').value = yyyymmdd;
-
             if (editCutiDatePicker) {
                 editCutiDatePicker.destroy();
             }
             
-            // Menu Edit Admin: Menghilangkan pembatasan minDate agar semua tanggal terbuka penuh
             editCutiDatePicker = flatpickr("#editCutiTgl", {
                 mode: "multiple",
                 dateFormat: "d/m/Y",
                 defaultDate: data.periodecuti.split(',').map(d => d.trim())
+            });
+
+            // MODIFIKASI: Menginisialisasi Tanggal Pengajuan dengan Flatpickr Format ID (d/m/Y)
+            if (editCutiTglAjuDatePicker) {
+                editCutiTglAjuDatePicker.destroy();
+            }
+
+            const rawTgl = data.tgl_pengajuan || data.$createdAt || new Date().toISOString();
+            editCutiTglAjuDatePicker = flatpickr("#editCutiTglPengajuan", {
+                dateFormat: "d/m/Y",
+                defaultDate: parseCustomDate(rawTgl)
             });
 
             document.getElementById('editCutiModal').classList.remove('hidden-force');
@@ -1582,7 +1563,8 @@
             showNotification('Memproses', 'Menyimpan rincian cuti...', 'info');
 
             try {
-                const tglAjuISO = new Date(tglPengajuan).toISOString();
+                // Konversi tanggal pengajuan d/m/Y yang dipilih kembali ke string ISO standar
+                const tglAjuISO = formatISOFromString(tglPengajuan);
 
                 const updatedPayload = {
                     jeniscuti: jenis,
@@ -1797,9 +1779,6 @@
                 const isCutiTahunan = item.jeniscuti === "Cuti Tahunan";
                 const isCutiMendadak = item.jeniscuti === "Cuti Mendadak";
 
-                // LOGIKA MONITOR CUTI REVISI:
-                // Cuti tahunan hanya muncul jika telah disetujui (Approved)
-                // Cuti mendadak selalu muncul asal TIDAK ditolak (Pending & Approved tetap muncul)
                 if ((isCutiTahunan && isApproved) || (isCutiMendadak && !isRejected)) {
                     if (item.rawPeriodeList.includes(todayKey)) listHariIni.push(item);
                 }
@@ -2147,9 +2126,9 @@
             const parts = raw.split('/');
             if (parts.length === 3) {
                 const day = parseInt(parts[0], 10);
-                const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+                const month = parseInt(parts[1], 10) - 1; 
                 const year = parseInt(parts[2], 10);
-                const d = new Date(year, month, day, 12, 0, 0); // Atur jam siang hari demi keamanan timezone drift
+                const d = new Date(year, month, day, 12, 0, 0); 
                 if (!isNaN(d.getTime())) return d.toISOString();
             }
 
@@ -2196,14 +2175,12 @@
             closeEditPegawai();
         }
 
-        // VISIBILITAS PASSWORD / PIN ADMIN
         function togglePinVisibility() {
             const pinInput = document.getElementById('adminPinInput');
             const checkbox = document.getElementById('toggleShowPin');
             pinInput.type = checkbox.checked ? 'text' : 'password';
         }
 
-        // KEYBOARD ENTER AUTOCOMPLETE HANDLER
         function handleNameInputKeyDown(event) {
             if (event.key === 'Enter') {
                 const dropdown = document.getElementById('nameDropdown');
@@ -2281,6 +2258,11 @@
             const newNama = document.getElementById('setNamaSekolah').value.trim();
             const newTahun = document.getElementById('setTahunAjaran').value.trim();
             const newWaAdmin = document.getElementById('setWaAdmin').value.trim();
+            
+            // Mengambil input data settings baru
+            const newAlamat = document.getElementById('setAlamatSekolah').value.trim();
+            const newEmail = document.getElementById('setEmailSekolah').value.trim();
+            const newTelp = document.getElementById('setTelpSekolah').value.trim();
             const logoInput = document.getElementById('setLogo').files[0];
 
             if(!newNama || !newTahun) return showNotification('Peringatan', 'Nama Sekolah dan Tahun Ajaran wajib diisi!', 'warning');
@@ -2288,6 +2270,12 @@
 
             appSettings.namaSekolah = newNama;
             appSettings.waAdmin = newWaAdmin;
+            
+            // Menyimpan field baru ke localStorage instansi
+            appSettings.alamatSekolah = newAlamat;
+            appSettings.emailSekolah = newEmail;
+            appSettings.telpSekolah = newTelp;
+            
             let isYearChanged = appSettings.tahunAjaran !== newTahun;
             appSettings.tahunAjaran = newTahun;
 
@@ -2607,23 +2595,20 @@
             
             let s = String(dateStr).trim();
             
-            // Atasi format standar ISO
             if (s.includes('T')) {
                 const parsed = new Date(s);
                 if (!isNaN(parsed.getTime())) return parsed;
             }
             
-            // Atasi pemisahan regional DD/MM/YYYY (Flatpickr Output)
             const parts = s.split('/');
             if (parts.length === 3) {
                 const day = parseInt(parts[0], 10);
-                const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+                const month = parseInt(parts[1], 10) - 1; 
                 const year = parseInt(parts[2], 10);
-                const d = new Date(year, month, day, 12, 0, 0); // midday safety
+                const d = new Date(year, month, day, 12, 0, 0); 
                 if (!isNaN(d.getTime())) return d;
             }
             
-            // Atasi pemisahan tanda hubung YYYY-MM-DD
             const ymdParts = s.split('-');
             if (ymdParts.length === 3 && ymdParts[0].length === 4) {
                 const year = parseInt(ymdParts[0], 10);
@@ -2633,7 +2618,6 @@
                 if (!isNaN(d.getTime())) return d;
             }
 
-            // Atasi pemisahan tanda hubung DD-MM-YYYY
             if (ymdParts.length === 3 && ymdParts[2].length === 4) {
                 const day = parseInt(ymdParts[0], 10);
                 const month = parseInt(ymdParts[1], 10) - 1;
@@ -2673,7 +2657,6 @@
             const textarea = document.getElementById('alasan');
             
             if (j === "Cuti Mendadak") { 
-                // Cuti Mendadak: Diizinkan mengajukan mundur hingga 7 hari ke belakang
                 datePicker.set('minDate', new Date().fp_incr(-7)); 
                 textarea.required = true;
                 if(lbl) {
@@ -2682,7 +2665,6 @@
                 }
                 textarea.placeholder = "Jelaskan secara singkat (Wajib)...";
             } else { 
-                // Cuti Tahunan: Wajib diajukan minimal 14 hari di masa depan
                 datePicker.set('minDate', new Date().fp_incr(14)); 
                 textarea.required = false;
                 if(lbl) {
@@ -2713,7 +2695,7 @@
         function selectP(n, j) { document.getElementById('namaInput').value = n; document.getElementById('jabatan').value = j; document.getElementById('nameDropdown').classList.add('hidden'); }
 
         // ==========================================
-        // OFFICIAL SLIP PDF GENERATOR
+        // OFFICIAL SLIP PDF GENERATOR (REDISEGNED HEADERS)
         // ==========================================
         function printOfficialPDF(id, isPreview = false) {
             const data = allHistory.find(item => item.id === id);
@@ -2726,35 +2708,148 @@
             let headerText = "SURAT PERMOHONAN CUTI";
             let stampMain = "DIPROSES"; let stampSub = "Permohonan dalam proses peninjauan oleh manajemen."; let stampColor = [59, 130, 246];
 
-            if (status === "approved" || status === "disetujui") { headerText = "SURAT KETERANGAN IZIN CUTI"; stampMain = "DISETUJUI"; stampSub = "Tugas untuk diserahkan ke Kurikulum sebelum Cuti"; stampColor = [34, 197, 94]; } 
-            else if (status === "rejected" || status === "ditolak") { headerText = "SURAT KETERANGAN IZIN CUTI"; stampMain = "DITOLAK"; stampSub = "Silakan hubungi Hubinmas untuk keterangan lebih Lanjut"; stampColor = [239, 68, 68]; }
+            if (status === "approved" || status === "disetujui") { headerText = "SURAT KETERANGAN IZIN CUTI"; stampMain = "DISETUJUI"; stampSub = "Tugas wajib diserahkan ke Kurikulum sebelum cuti dimulai."; stampColor = [34, 197, 94]; } 
+            else if (status === "rejected" || status === "ditolak") { headerText = "SURAT KETERANGAN IZIN CUTI"; stampMain = "DITOLAK"; stampSub = "Silakan hubungi bagian Hubinmas untuk informasi lebih lanjut."; stampColor = [239, 68, 68]; }
 
-            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(appSettings.namaSekolah.toUpperCase(), 105, 22, { align: "center" });
-            doc.setFontSize(14); doc.text(headerText, 105, 30, { align: "center" });
-            doc.setFontSize(10); doc.setFont("courier", "bold"); doc.text(`ID Permohonan: ${data.id}`, 105, 36, { align: "center" });
+            // --- GENERATOR KOP SURAT RESMI (INDONESIA STYLE) ---
+            const hasLogo = appSettings.logoBase64 && appSettings.logoBase64.trim() !== "";
+            let textStartX = 105;
+            let textAlignMode = "center";
 
-            let yPos = 55; doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.text("Melalui surat ini menerangkan bahwa:", 20, yPos);
-            yPos += 12;
-            const labels = ["Nama", "Jabatan", "Jenis Cuti", "Periode Cuti", "Jumlah Hari Cuti", "Status"];
-            const values = [`: ${data.nama}`, `: ${data.jabatan}`, `: ${data.jeniscuti}`, `: ${data.displayPeriode}`, `: ${data.totalHari} Hari`, `: `];
+            // Jika ada logo instansi, taruh di sisi kiri atas Kop Surat
+            if (hasLogo) {
+                try {
+                    doc.addImage(appSettings.logoBase64, 'PNG', 20, 10, 22, 22);
+                    textStartX = 112; 
+                    textAlignMode = "center";
+                } catch (e) {
+                    console.error("Format gambar logo bermasalah:", e);
+                }
+            }
 
-            labels.forEach((l, i) => { doc.setFont("helvetica", "bold"); doc.text(l, 25, yPos); doc.setFont("helvetica", "normal"); doc.text(values[i], 65, yPos); yPos += 8; });
-            yPos += 5;
-            doc.setDrawColor(stampColor[0], stampColor[1], stampColor[2]); doc.setLineWidth(1.5); doc.roundedRect(20, yPos, 170, 30, 3, 3, 'D');
-            doc.setFillColor(stampColor[0], stampColor[1], stampColor[2], 0.1); doc.roundedRect(21, yPos + 1, 168, 28, 2, 2, 'F');
-            doc.setTextColor(stampColor[0], stampColor[1], stampColor[2]); doc.setFontSize(24); doc.setFont("helvetica", "bold"); doc.text(stampMain, 105, yPos + 15, { align: "center" });
-            doc.setFontSize(9); doc.setFont("helvetica", "italic"); doc.text(stampSub, 105, yPos + 22, { align: "center" });
+            // Nama Instansi / Sekolah (Bold, besar, dominan)
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text(appSettings.namaSekolah.toUpperCase(), textStartX, 15, { align: textAlignMode });
 
-            yPos += 50; doc.setTextColor(30, 41, 59); const boxX = 125, boxY = yPos, boxW = 65, boxH = 35;
-            doc.setLineWidth(0.1); doc.setDrawColor(226, 232, 240); doc.setFillColor(248, 250, 252); doc.roundedRect(boxX, boxY, boxW, boxH, 2, 2, 'FD');
-            doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text("VERIFIKASI DIGITAL", boxX + (boxW/2), boxY + 7, { align: "center" });
-            doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.text(`Diajukan: ${data.tglPengajuanHuman}`, boxX + 5, boxY + 15); doc.text(`Sistem: SIPATU-SMART`, boxX + 5, boxY + 20);
+            // Alamat Lengkap Instansi (Menggunakan data baru yang dinamis)
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            const alamatTxt = appSettings.alamatSekolah || "Jl. Raya Parung-Ciputat No. 1, Bojongsari, Depok, Jawa Barat";
+            doc.text(alamatTxt, textStartX, 21, { align: textAlignMode });
+
+            // Kontak: Nomor HP Sekolah dan Email resmi
+            doc.setFontSize(8);
+            const emailTxt = appSettings.emailSekolah || "info@sekolah.sch.id";
+            const telpTxt = appSettings.telpSekolah || "-";
+            doc.text(`Telepon: ${telpTxt} | Email: ${emailTxt}`, textStartX, 26, { align: textAlignMode });
+
+            // Garis Pembatas Kop Surat Ganda (Atas Tebal, Bawah Tipis)
+            doc.setDrawColor(30, 41, 59); // Slate-800
+            doc.setLineWidth(0.8);
+            doc.line(20, 33, 190, 33);
+            doc.setLineWidth(0.25);
+            doc.line(20, 34.2, 190, 34.2);
+
+            // --- SELESAI KOP SURAT ---
+
+            // Judul Dokumen Surat (Ditengah, Bergaris bawah)
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(12);
+            doc.text(headerText, 105, 45, { align: "center" });
             
-            const secureString = unescape(encodeURIComponent(data.id + data.nama)); const code = btoa(secureString).substring(0, 16).toUpperCase();
-            doc.setFont("courier", "bold"); doc.setFontSize(8); doc.setTextColor(79, 70, 229); doc.text(code, boxX + (boxW/2), boxY + 28, { align: "center" });
-            doc.setFont("helvetica", "italic"); doc.setFontSize(6); doc.setTextColor(148, 163, 184); doc.text("*Sah tanpa tanda tangan basah", boxX + (boxW/2), boxY + 32, { align: "center" });
+            // Menggambar garis bawah judul surat resmi
+            doc.setLineWidth(0.2);
+            const titleWidth = doc.getTextWidth(headerText);
+            doc.line(105 - (titleWidth / 2), 46.5, 105 + (titleWidth / 2), 46.5);
 
-            if (isPreview) { window.open(doc.output('bloburl'), '_blank'); } else { doc.save(`${data.nama} - ${data.id}.pdf`.replace(/[/\\?%*:|"<>]/g, '-')); }
+            // ID / Kode Transaksi Surat
+            doc.setFont("courier", "bold");
+            doc.setFontSize(9);
+            doc.text(`Nomor / ID: ${data.id}`, 105, 52, { align: "center" });
+
+            // Paragraf Menerangkan
+            let yPos = 65; 
+            doc.setFont("helvetica", "normal"); 
+            doc.setFontSize(10); 
+            doc.text("Melalui surat keterangan resmi ini menerangkan bahwa:", 20, yPos);
+            
+            // Detail Informasi Pegawai
+            yPos += 10;
+            const labels = ["Nama Pegawai", "Jabatan", "Kategori Cuti", "Periode Cuti", "Jumlah Hari", "Status Surat"];
+            const values = [
+                `: ${data.nama}`, 
+                `: ${data.jabatan}`, 
+                `: ${data.jeniscuti}`, 
+                `: ${data.displayPeriode}`, 
+                `: ${data.totalHari} Hari`, 
+                `: `
+            ];
+
+            labels.forEach((l, i) => { 
+                doc.setFont("helvetica", "bold"); 
+                doc.text(l, 25, yPos); 
+                doc.setFont("helvetica", "normal"); 
+                doc.text(values[i], 65, yPos); 
+                yPos += 7; 
+            });
+            
+            // Stempel Keputusan Admin Box
+            yPos += 3;
+            doc.setDrawColor(stampColor[0], stampColor[1], stampColor[2]); 
+            doc.setLineWidth(1.5); 
+            doc.roundedRect(20, yPos, 170, 30, 3, 3, 'D');
+            
+            doc.setFillColor(stampColor[0], stampColor[1], stampColor[2], 0.1); 
+            doc.roundedRect(21, yPos + 1, 168, 28, 2, 2, 'F');
+            
+            doc.setTextColor(stampColor[0], stampColor[1], stampColor[2]); 
+            doc.setFontSize(22); 
+            doc.setFont("helvetica", "bold"); 
+            doc.text(stampMain, 105, yPos + 14, { align: "center" });
+            
+            doc.setFontSize(8.5); 
+            doc.setFont("helvetica", "italic"); 
+            doc.text(stampSub, 105, yPos + 22, { align: "center" });
+
+            // Kotak Verifikasi Keamanan Digital
+            yPos += 45; 
+            doc.setTextColor(30, 41, 59); 
+            const boxX = 125, boxY = yPos, boxW = 65, boxH = 35;
+            
+            doc.setLineWidth(0.1); 
+            doc.setDrawColor(226, 232, 240); 
+            doc.setFillColor(248, 250, 252); 
+            doc.roundedRect(boxX, boxY, boxW, boxH, 2, 2, 'FD');
+            
+            doc.setFontSize(8); 
+            doc.setFont("helvetica", "bold"); 
+            doc.text("VERIFIKASI DIGITAL", boxX + (boxW/2), boxY + 7, { align: "center" });
+            
+            doc.setFont("helvetica", "normal"); 
+            doc.setFontSize(7); 
+            doc.text(`Diajukan: ${data.tglPengajuanHuman}`, boxX + 5, boxY + 15); 
+            doc.text(`Sistem: SIPATU-SMART`, boxX + 5, boxY + 20);
+            
+            // Token unik pengaman
+            const secureString = unescape(encodeURIComponent(data.id + data.nama)); 
+            const code = btoa(secureString).substring(0, 16).toUpperCase();
+            
+            doc.setFont("courier", "bold"); 
+            doc.setFontSize(8); 
+            doc.setTextColor(79, 70, 229); 
+            doc.text(code, boxX + (boxW/2), boxY + 28, { align: "center" });
+            
+            doc.setFont("helvetica", "italic"); 
+            doc.setFontSize(6); 
+            doc.setTextColor(148, 163, 184); 
+            doc.text("*Sah tanpa tanda tangan basah", boxX + (boxW/2), boxY + 32, { align: "center" });
+
+            if (isPreview) { 
+                window.open(doc.output('bloburl'), '_blank'); 
+            } else { 
+                doc.save(`${data.nama} - ${data.id}.pdf`.replace(/[/\\?%*:|"<>]/g, '-')); 
+            }
         }
 
         function generatePeriodicPDF() {
