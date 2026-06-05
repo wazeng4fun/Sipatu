@@ -1028,9 +1028,15 @@
         async function fetchHistory() {
             try {
                 const response = await databases.listDocuments(APPWRITE_DATABASE, APPWRITE_COLLECTION, [Query.limit(100)]);
-                saveLocalStorageHistory(response.documents);
+                
+                // PERBAIKAN BUG: Ambil data lokal yang belum tersinkronisasi (berawalan 'local_') 
+                // agar tidak terhapus secara otomatis saat sinkronisasi cloud berhasil
+                const localUnsynced = getLocalStorageHistory().filter(item => item.$id && String(item.$id).startsWith('local_'));
+                const combinedData = [...localUnsynced, ...response.documents];
+                
+                saveLocalStorageHistory(combinedData);
                 updateSyncStatus(true);
-                processRawData(response.documents);
+                processRawData(combinedData);
             } catch (e) { 
                 console.warn("Gagal terhubung ke Appwrite (Menggunakan fallback lokal)", e); 
                 updateSyncStatus(false);
@@ -2421,7 +2427,7 @@
             try {
                 if (isCloudConnected) {
                     await databases.createDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, ID.unique(), payload);
-                    showNotification('Terkirim', 'Pengajuan berhasil masuk ke server!', 'success');
+                    showNotification('Terkirim', 'Pengajuan berhasil masuk ke server cloud!', 'success');
                 } else {
                     const localData = getLocalStorageHistory();
                     localData.push({ ...payload, $id: 'local_' + currentSubmissionId });
@@ -2435,11 +2441,20 @@
                 handleTypeChange(); 
                 setTimeout(fetchHistory, 1000); 
             } catch (e) { 
-                console.error(e);
+                // DETEKSI ERROR DETAIL UNTUK MEMBANTU DEVELOPER
+                console.error("DEBUG DETAIL ERROR APPWRITE:", e);
+                let customWarningMsg = "Koneksi terganggu. Data disimpan offline.";
+                
+                if (e.code === 400) {
+                    customWarningMsg = "Gagal simpan ke Cloud: Pastikan semua atribut di Console Appwrite sudah sesuai (Spelling & tipe data)!";
+                } else if (e.code === 403 || e.code === 401) {
+                    customWarningMsg = "Gagal simpan ke Cloud: Periksa izin akses (Permissions) Any/Users di Console Appwrite!";
+                }
+                
                 const localData = getLocalStorageHistory();
                 localData.push({ ...payload, $id: 'local_' + currentSubmissionId });
                 saveLocalStorageHistory(localData);
-                showNotification('Tersimpan Lokal', 'Koneksi terganggu. Data disimpan offline.', 'warning');
+                showNotification('Tersimpan Lokal', customWarningMsg, 'warning');
                 
                 openWhatsAppAdminNotification(payload);
 
