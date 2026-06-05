@@ -68,9 +68,9 @@
             <!-- Sync Indicator User -->
             <div class="flex justify-between items-center px-1">
                 <span class="text-[10px] font-bold text-indigo-400" id="lblTahunAjaranUser">TA: 2023-2024</span>
-                <span id="syncIndicatorUser" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100">
+                <button onclick="manualSyncUser()" id="syncIndicatorUser" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100 hover:bg-indigo-50 hover:text-indigo-600 transition-all cursor-pointer" title="Klik untuk melakukan sinkronisasi data manual dengan database pusat">
                     <i class="fas fa-circle-notch fa-spin"></i> Loading...
-                </span>
+                </button>
             </div>
 
             <!-- Form Pengajuan -->
@@ -837,165 +837,6 @@
             }
         });
 
-        // ==========================================
-        // PEMBERSIHAN DATABASE SECARA MASSAL
-        // ==========================================
-        function openDeleteAllCutiModal() {
-            document.getElementById('deleteAllConfirmationInput').value = "";
-            document.getElementById('deleteAllCutiModal').classList.remove('hidden-force');
-            document.getElementById('deleteAllCutiModal').style.display = 'flex';
-        }
-
-        function closeDeleteAllCutiModal() {
-            document.getElementById('deleteAllCutiModal').classList.add('hidden-force');
-            document.getElementById('deleteAllCutiModal').style.display = 'none';
-        }
-
-        async function processDeleteAllCuti() {
-            const inputVal = document.getElementById('deleteAllConfirmationInput').value.trim().toUpperCase();
-            if (inputVal !== 'KONFIRMASI') {
-                showNotification('Konfirmasi Salah', 'Anda harus mengetik kata KONFIRMASI dengan benar.', 'warning');
-                return;
-            }
-
-            closeDeleteAllCutiModal();
-
-            const progressModal = document.getElementById('importProgressModal');
-            progressModal.classList.remove('hidden-force');
-            progressModal.style.display = 'flex';
-
-            document.getElementById('importProgressTitle').innerText = "Membersihkan Database...";
-            document.getElementById('importProgressSub').innerText = "Mohon tunggu, sistem sedang menghapus seluruh rekaman data cuti secara bertahap...";
-            document.getElementById('importProgressBar').style.width = "0%";
-            document.getElementById('importProgressCount').innerText = "0 / 0 Data";
-            document.getElementById('importProgressPercent').innerText = "0%";
-            document.getElementById('importLogArea').classList.remove('hidden');
-            document.getElementById('importLogLines').innerHTML = "";
-            document.getElementById('btnCancelImport').classList.add('hidden'); 
-            document.getElementById('btnCloseProgress').classList.add('hidden');
-            document.getElementById('importSpinner').innerHTML = `<i class="fas fa-trash-alt animate-bounce text-rose-500"></i>`;
-            document.getElementById('importSuccessCount').innerText = `Dihapus: 0`;
-
-            const totalItems = allHistory.length;
-            if (totalItems === 0) {
-                saveLocalStorageHistory([]);
-                document.getElementById('importProgressBar').style.width = "100%";
-                document.getElementById('importProgressCount').innerText = "0 / 0 Data";
-                document.getElementById('importProgressPercent').innerText = "100%";
-                document.getElementById('btnCloseProgress').classList.remove('hidden');
-                document.getElementById('importProgressTitle').innerText = "Database Bersih";
-                document.getElementById('importProgressSub').innerText = "Tidak ada data transaksi cuti di sistem untuk dibersihkan.";
-                document.getElementById('importSpinner').innerHTML = `<i class="fas fa-check-circle text-emerald-500"></i>`;
-                await fetchHistory();
-                return;
-            }
-
-            let deletedCount = 0;
-            let failureCount = 0;
-
-            for (let idx = 0; idx < totalItems; idx++) {
-                const item = allHistory[idx];
-                const currentPercent = Math.round(((idx + 1) / totalItems) * 100);
-                document.getElementById('importProgressBar').style.width = `${currentPercent}%`;
-                document.getElementById('importProgressCount').innerText = `${idx + 1} / ${totalItems} Data`;
-                document.getElementById('importProgressPercent').innerText = `${currentPercent}%`;
-
-                try {
-                    if (isCloudConnected && item.appwriteId && !item.appwriteId.startsWith('local_')) {
-                        await databases.deleteDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, item.appwriteId);
-                        await new Promise(resolve => setTimeout(resolve, 300));
-                    }
-                    
-                    deletedCount++;
-                    document.getElementById('importSuccessCount').innerText = `Dihapus: ${deletedCount}`;
-                    appendImportLog(`✓ [${item.id}] Cuti ${item.nama} telah dibersihkan secara permanen.`, "text-emerald-600");
-                } catch (err) {
-                    failureCount++;
-                    appendImportLog(`✗ [${item.id}] Gagal dibersihkan. Alasan: ${err.message || "Error server"}`, "text-rose-600");
-                }
-            }
-
-            saveLocalStorageHistory([]);
-            document.getElementById('btnCloseProgress').classList.remove('hidden');
-            document.getElementById('importProgressTitle').innerText = "Database Berhasil Dikosongkan";
-            document.getElementById('importProgressSub').innerText = `Berhasil menghapus ${deletedCount} data cuti. Gagal: ${failureCount} data.`;
-            document.getElementById('importSpinner').innerHTML = `<i class="fas fa-check-circle text-emerald-500"></i>`;
-
-            await fetchHistory(); 
-        }
-
-        // ==========================================
-        // INITIALIZATION & SETTINGS
-        // ==========================================
-        async function init() {
-            applySettingsToUI();
-            
-            // Menginisialisasi Flatpickr dengan event onChange untuk mencegah manipulasi tanggal di bawah 14 hari bagi cuti tahunan
-            datePicker = flatpickr("#tglCuti", { 
-                mode: "multiple", 
-                dateFormat: "d/m/Y",
-                onChange: function(selectedDates, dateStr, instance) {
-                    const j = document.getElementById('jenis').value;
-                    if (j === "Cuti Tahunan") {
-                        const minAllowed = new Date();
-                        minAllowed.setHours(0,0,0,0);
-                        minAllowed.setDate(minAllowed.getDate() + 14);
-                        
-                        const hasInvalid = selectedDates.some(date => date < minAllowed);
-                        if (hasInvalid) {
-                            showNotification('Batas Pengajuan', 'Cuti Tahunan Wajib di Ajukan selambat-lambatnya 14 hari sebelum cuti', 'warning');
-                            instance.clear();
-                        }
-                    }
-                }
-            });
-            document.getElementById('todayDateLabel').innerText = humanizeDate(new Date());
-            
-            handleTypeChange();
-
-            if(pegawaiList.length === 0) {
-                pegawaiList = [
-                    { id: 'PGW-10001', nama: 'Budi Santoso', jabatan: 'Guru Matematika', telepon: '08123456789' }
-                ];
-                localStorage.setItem('SIPATU_PEGAWAI', JSON.stringify(pegawaiList));
-            }
-
-            await fetchHistory(); 
-        }
-
-        function applySettingsToUI() {
-            document.getElementById('lblNamaSekolahUser').innerText = appSettings.namaSekolah;
-            document.getElementById('lblNamaSekolahAdmin').innerText = appSettings.namaSekolah;
-            document.getElementById('lblTahunAjaranUser').innerText = `TA: ${appSettings.tahunAjaran}`;
-            document.getElementById('lblTahunAjaranAdmin').innerText = appSettings.tahunAjaran;
-            
-            document.getElementById('setNamaSekolah').value = appSettings.namaSekolah;
-            document.getElementById('setTahunAjaran').value = appSettings.tahunAjaran;
-            document.getElementById('setWaAdmin').value = appSettings.waAdmin || '';
-            
-            // Masukkan data baru ke kolom setting UI
-            document.getElementById('setAlamatSekolah').value = appSettings.alamatSekolah || '';
-            document.getElementById('setEmailSekolah').value = appSettings.emailSekolah || '';
-            document.getElementById('setTelpSekolah').value = appSettings.telpSekolah || '';
-            
-            if(appSettings.logoBase64) {
-                document.getElementById('userLogo').src = appSettings.logoBase64;
-                document.getElementById('userLogo').classList.remove('hidden');
-                document.getElementById('userIconFallback').classList.add('hidden-force');
-                
-                document.getElementById('adminLogo').src = appSettings.logoBase64;
-                document.getElementById('adminLogo').classList.remove('hidden');
-                document.getElementById('adminIconFallback').classList.add('hidden-force');
-                
-                document.getElementById('previewLogo').src = appSettings.logoBase64;
-                document.getElementById('previewLogo').classList.remove('hidden');
-                document.getElementById('previewFallback').classList.add('hidden-force');
-            }
-        }
-
-        function getLocalStorageHistory() { try { return JSON.parse(localStorage.getItem('SIPATU_LOCAL_DATABASE') || '[]'); } catch (e) { return []; } }
-        function saveLocalStorageHistory(data) { try { localStorage.setItem('SIPATU_LOCAL_DATABASE', JSON.stringify(data)); } catch (e) { console.error(e); } }
-
         function updateSyncStatus(connected) {
             isCloudConnected = connected;
             const indU = document.getElementById('syncIndicatorUser');
@@ -1003,8 +844,8 @@
             
             if (connected) {
                 if (indU) {
-                    indU.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100";
-                    indU.innerHTML = `<i class="fas fa-cloud"></i> Online`;
+                    indU.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100 hover:text-emerald-700 transition-all cursor-pointer";
+                    indU.innerHTML = `<i class="fas fa-cloud text-emerald-500"></i> Online (Sync)`;
                 }
                 if (indA) {
                     indA.className = "inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-400";
@@ -1012,8 +853,8 @@
                 }
             } else {
                 if (indU) {
-                    indU.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100 animate-pulse";
-                    indU.innerHTML = `<i class="fas fa-hdd"></i> Offline`;
+                    indU.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold bg-rose-50 text-rose-600 border border-rose-100 animate-pulse hover:bg-rose-100 cursor-pointer";
+                    indU.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Offline (Tap to Retry)`;
                 }
                 if (indA) {
                     indA.className = "inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-400 animate-pulse";
@@ -1025,18 +866,65 @@
         // ==========================================
         // HISTORY FETCHING & RENDERING
         // ==========================================
+        async function syncOfflineDataToCloud() {
+            if (!isCloudConnected) return;
+            
+            const localData = getLocalStorageHistory();
+            // Ambil semua data lokal yang ID-nya diawali dengan 'local_' (belum terunggah)
+            const unsyncedItems = localData.filter(item => item.$id && String(item.$id).startsWith('local_'));
+            
+            if (unsyncedItems.length === 0) return;
+            
+            showNotification('Sinkronisasi', `Menemukan ${unsyncedItems.length} data offline baru. Mengunggah ke database pusat...`, 'info');
+            
+            let syncedCount = 0;
+            for (let item of unsyncedItems) {
+                try {
+                    const payload = {
+                        id: item.id,
+                        nama: item.nama,
+                        jabatan: item.jabatan,
+                        jeniscuti: item.jeniscuti,
+                        periodecuti: item.periodecuti,
+                        alasancuti: item.alasancuti,
+                        tgl_pengajuan: item.tgl_pengajuan,
+                        status: item.status || "Pending",
+                        tahun_ajaran: item.tahun_ajaran,
+                        lampiran: item.lampiran || ""
+                    };
+                    
+                    // Buat dokumen asli di server cloud Appwrite
+                    await databases.createDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, ID.unique(), payload);
+                    syncedCount++;
+                } catch (err) {
+                    console.error("Gagal mengunggah pengajuan offline ini:", err);
+                }
+            }
+            
+            if (syncedCount > 0) {
+                showNotification('Sukses Sinkronisasi', `${syncedCount} pengajuan offline berhasil disimpan permanen di database pusat!`, 'success');
+            }
+        }
+
+        async function manualSyncUser() {
+            showNotification('Menghubungkan', 'Mencoba menyinkronkan data dengan database pusat...', 'info');
+            await fetchHistory();
+        }
+
         async function fetchHistory() {
             try {
                 const response = await databases.listDocuments(APPWRITE_DATABASE, APPWRITE_COLLECTION, [Query.limit(100)]);
-                
-                // PERBAIKAN BUG: Ambil data lokal yang belum tersinkronisasi (berawalan 'local_') 
-                // agar tidak terhapus secara otomatis saat sinkronisasi cloud berhasil
-                const localUnsynced = getLocalStorageHistory().filter(item => item.$id && String(item.$id).startsWith('local_'));
-                const combinedData = [...localUnsynced, ...response.documents];
-                
-                saveLocalStorageHistory(combinedData);
                 updateSyncStatus(true);
-                processRawData(combinedData);
+                
+                // Pemicu proses penyelarasan data offline (jika ada) ke Cloud
+                await syncOfflineDataToCloud();
+                
+                // Ambil kembali data hasil update terbaru agar data live yang ditampilkan
+                const updatedResponse = await databases.listDocuments(APPWRITE_DATABASE, APPWRITE_COLLECTION, [Query.limit(100)]);
+                
+                saveLocalStorageHistory(updatedResponse.documents);
+                updateSyncStatus(true);
+                processRawData(updatedResponse.documents);
             } catch (e) { 
                 console.warn("Gagal terhubung ke Appwrite (Menggunakan fallback lokal)", e); 
                 updateSyncStatus(false);
