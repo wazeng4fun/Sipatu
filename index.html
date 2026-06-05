@@ -34,6 +34,8 @@
         
         /* Hide element utility */
         .hidden-force { display: none !important; }
+        .animate-fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="antialiased">
@@ -42,7 +44,6 @@
     <!-- 1. USER VIEW (MOBILE APP STYLE)            -->
     <!-- ========================================== -->
     <div id="userView" class="max-w-[480px] mx-auto bg-slate-50 min-h-screen relative shadow-2xl pb-10 transition-all duration-500">
-        
         <!-- Header User -->
         <header class="bg-white px-6 py-5 rounded-b-[2rem] shadow-sm mb-6 flex justify-between items-center sticky top-0 z-40 border-b border-slate-100">
             <div class="flex items-center gap-3">
@@ -158,10 +159,8 @@
     <!-- 2. ADMIN VIEW (DESKTOP DASHBOARD STYLE)    -->
     <!-- ========================================== -->
     <div id="adminView" class="hidden-force flex h-screen bg-slate-100 w-full overflow-hidden transition-all duration-500">
-        
         <!-- Sidebar -->
         <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-20 shrink-0">
-            <!-- Brand -->
             <div class="h-20 flex items-center gap-3 px-6 border-b border-slate-800 bg-slate-950/50">
                 <img id="adminLogo" src="" alt="Logo" class="hidden h-10 w-10 object-contain bg-white rounded p-1">
                 <div class="bg-indigo-500 p-2 rounded-lg" id="adminIconFallback">
@@ -173,10 +172,8 @@
                 </div>
             </div>
             
-            <!-- Navigation -->
             <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
                 <p class="px-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Menu Utama</p>
-                
                 <button onclick="switchAdminTab('cuti')" id="tabBtn-cuti" class="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 transition-all">
                     <i class="fas fa-inbox w-4 text-center"></i> Kelola Cuti
                 </button>
@@ -191,7 +188,6 @@
                 </button>
             </nav>
 
-            <!-- Status & Logout -->
             <div class="p-4 border-t border-slate-800 bg-slate-950/30">
                 <div class="mb-4 px-2">
                     <span id="syncIndicatorAdmin" class="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
@@ -207,12 +203,10 @@
 
         <!-- Main Content Area -->
         <main class="flex-1 flex flex-col h-full overflow-hidden bg-slate-100">
-            <!-- Header Title -->
             <header class="h-20 bg-white border-b border-slate-200 flex items-center px-8 shrink-0 shadow-sm z-10">
                 <h1 class="text-xl font-bold text-slate-800" id="adminHeaderTitle">Kelola Permohonan Cuti</h1>
             </header>
 
-            <!-- Scrollable Content -->
             <div class="flex-1 overflow-y-auto p-8 relative">
                 
                 <!-- TAB 1: KELOLA CUTI -->
@@ -276,6 +270,9 @@
                             </div>
                             <div class="flex items-center gap-3">
                                 <input type="file" id="csvPegawaiInput" accept=".csv" class="hidden" onchange="handlePegawaiCSV(event)">
+                                <button onclick="downloadTemplatePegawaiCSV()" class="bg-indigo-50 text-indigo-600 border border-indigo-200 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2">
+                                    <i class="fas fa-download"></i> Template CSV
+                                </button>
                                 <button onclick="document.getElementById('csvPegawaiInput').click()" class="bg-emerald-50 text-emerald-600 border border-emerald-200 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-2">
                                     <i class="fas fa-file-csv"></i> Import CSV Pegawai
                                 </button>
@@ -301,9 +298,7 @@
                                         <th class="px-6 py-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider text-center">Aksi</th>
                                     </tr>
                                 </thead>
-                                <tbody id="pegawaiBody" class="divide-y divide-slate-50 bg-white">
-                                    <!-- Data Pegawai Render Disini -->
-                                </tbody>
+                                <tbody id="pegawaiBody" class="divide-y divide-slate-50 bg-white"></tbody>
                             </table>
                         </div>
                     </div>
@@ -348,10 +343,12 @@
                                     <i class="fas fa-file-csv"></i>
                                 </div>
                                 <p class="text-sm font-bold text-slate-700 mb-1">Pilih file CSV</p>
-                                <p class="text-[10px] text-slate-400 mb-4">Format kolom sama seperti file unduhan CSV disamping.</p>
+                                <p class="text-[10px] text-slate-400 mb-2">Format kolom harus sesuai template untuk menghindari gagal import.</p>
+                                <button onclick="downloadTemplateRiwayatCSV()" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline mb-4 inline-block">Unduh Template CSV Cuti</button>
                                 
+                                <br>
                                 <input type="file" id="csvHistoryImport" accept=".csv" class="hidden" onchange="importHistoryCSV(event)">
-                                <button onclick="document.getElementById('csvHistoryImport').click()" class="bg-slate-900 text-white px-6 py-2.5 rounded-full text-xs font-bold hover:bg-indigo-600 transition-all">
+                                <button onclick="document.getElementById('csvHistoryImport').click()" class="bg-slate-900 text-white px-6 py-2.5 rounded-full text-xs font-bold hover:bg-indigo-600 transition-all inline-block">
                                     Browse File
                                 </button>
                             </div>
@@ -406,6 +403,25 @@
     <!-- MODALS UTILITY                             -->
     <!-- ========================================== -->
 
+    <!-- Modal Konfirmasi Alasan / WhatsApp (BARU) -->
+    <div id="reasonModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[160] hidden-force items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
+            <h3 class="font-bold text-slate-800 mb-2 flex items-center gap-2"><i class="fas fa-comment-dots text-indigo-600"></i> Catatan Admin (Opsional)</h3>
+            <p class="text-xs text-slate-500 mb-4">Tambahkan pesan untuk diteruskan via WhatsApp.</p>
+            <input type="hidden" id="pendingActionId">
+            <input type="hidden" id="pendingActionStatus">
+            <div class="space-y-4">
+                <textarea id="adminReason" rows="3" placeholder="Contoh: Silakan direvisi tanggalnya, atau Cuti disetujui, selamat berlibur." class="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-lg text-sm focus:border-indigo-500 outline-none"></textarea>
+            </div>
+            <div class="flex gap-3 mt-6 pt-4 border-t border-slate-100">
+                <button onclick="closeReasonModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl text-sm hover:bg-slate-200 transition-all">Batal</button>
+                <button onclick="confirmUpdateStatus()" class="flex-1 py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-sm hover:bg-emerald-700 transition-all shadow-md flex items-center justify-center gap-2">
+                    <i class="fab fa-whatsapp"></i> Simpan & WA
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Verifikasi PIN Admin -->
     <div id="adminPinModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden-force items-center justify-center p-4 transition-opacity">
         <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300" id="pinModalContent">
@@ -444,8 +460,8 @@
                     <input type="text" id="editPegawaiJabatan" class="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg text-sm mt-1 focus:border-indigo-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase">No. Telepon</label>
-                    <input type="text" id="editPegawaiTelp" class="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg text-sm mt-1 focus:border-indigo-500 outline-none">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase">No. Telepon (WA)</label>
+                    <input type="text" id="editPegawaiTelp" placeholder="Contoh: 08123..." class="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg text-sm mt-1 focus:border-indigo-500 outline-none">
                 </div>
             </div>
             <div class="flex gap-3 mt-6 pt-4 border-t border-slate-100">
@@ -469,12 +485,6 @@
             <button id="btnGoToForm" onclick="redirectToForm()" class="w-full bg-slate-900 hover:bg-indigo-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg">Selesai Beraktivitas</button>
         </div>
     </div>
-
-    <!-- Custom CSS Animasi tambahan -->
-    <style>
-        .animate-fade-in { animation: fadeIn 0.4s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
 
     <script>
         // ==========================================
@@ -524,11 +534,9 @@
             datePicker = flatpickr("#tglCuti", { mode: "multiple", dateFormat: "d/m/Y", minDate: "today" });
             document.getElementById('todayDateLabel').innerText = humanizeDate(new Date());
             
-            // Generate dummy pegawai if empty for testing
             if(pegawaiList.length === 0) {
                 pegawaiList = [
-                    { id: 'PGW-10001', nama: 'Budi Santoso, S.Pd', jabatan: 'Guru Matematika', telepon: '08123456789' },
-                    { id: 'PGW-10002', nama: 'Siti Aminah, M.Kom', jabatan: 'Kepala Sekolah', telepon: '08987654321' }
+                    { id: 'PGW-10001', nama: 'Budi Santoso', jabatan: 'Guru Matematika', telepon: '08123456789' }
                 ];
                 localStorage.setItem('SIPATU_PEGAWAI', JSON.stringify(pegawaiList));
             }
@@ -542,7 +550,6 @@
             document.getElementById('lblTahunAjaranUser').innerText = `TA: ${appSettings.tahunAjaran}`;
             document.getElementById('lblTahunAjaranAdmin').innerText = appSettings.tahunAjaran;
             
-            // Isi form pengaturan admin
             document.getElementById('setNamaSekolah').value = appSettings.namaSekolah;
             document.getElementById('setTahunAjaran').value = appSettings.tahunAjaran;
             
@@ -673,12 +680,23 @@
                 if(status === "approved" || status === "disetujui") { dotClass = "dot-approved"; badgeClass = "bg-emerald-50 text-emerald-600 border-emerald-200"; statusText = "Disetujui"; }
                 if(status === "rejected" || status === "ditolak") { dotClass = "dot-rejected"; badgeClass = "bg-rose-50 text-rose-600 border-rose-200"; statusText = "Ditolak"; }
 
+                // Deteksi Nomor WhatsApp
+                const p = pegawaiList.find(x => x.nama.toLowerCase() === i.nama.toLowerCase());
+                const phoneNo = p ? p.telepon : "";
+                const hasPhone = phoneNo && phoneNo !== "-" && phoneNo.length > 5;
+                const waIcon = hasPhone 
+                    ? `<button onclick="sendDirectWA('${i.id}')" class="text-emerald-500 hover:text-emerald-600 transition-colors ml-2" title="Chat WA Personal"><i class="fab fa-whatsapp"></i></button>` 
+                    : `<span class="text-slate-300 ml-2" title="Nomor WA tidak tersedia"><i class="fab fa-whatsapp"></i></span>`;
+
                 return `<tr class="hover:bg-slate-50 transition-colors group">
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-xs shrink-0">${i.nama.charAt(0)}</div>
                             <div class="flex flex-col">
-                                <span class="font-bold text-slate-800 text-sm">${i.nama}</span>
+                                <div class="flex items-center">
+                                    <span class="font-bold text-slate-800 text-sm">${i.nama}</span>
+                                    ${waIcon}
+                                </div>
                                 <span class="text-[9px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded w-max mt-0.5">${i.id}</span>
                             </div>
                         </div>
@@ -693,10 +711,10 @@
                     </td>
                     <td class="px-6 py-4 text-center">
                         <div class="flex items-center justify-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                            <button onclick="updateLeaveStatus('${i.id}', 'Approved')" title="Setujui" class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-colors border border-emerald-100">
+                            <button onclick="openReasonModal('${i.id}', 'Approved')" title="Setujui Pengajuan" class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-colors border border-emerald-100">
                                 <i class="fas fa-check text-xs"></i>
                             </button>
-                            <button onclick="updateLeaveStatus('${i.id}', 'Rejected')" title="Tolak" class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors border border-rose-100">
+                            <button onclick="openReasonModal('${i.id}', 'Rejected')" title="Tolak Pengajuan" class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors border border-rose-100">
                                 <i class="fas fa-times text-xs"></i>
                             </button>
                             <div class="w-px h-6 bg-slate-200 mx-1"></div>
@@ -804,7 +822,6 @@
                     if(!line) continue;
                     const parsed = parseCSVLine(line);
                     const nama = parsed[0]?.trim();
-                    
                     if(!nama) continue; 
                     
                     const newId = 'PGW-' + Math.random().toString(36).substr(2, 5).toUpperCase();
@@ -854,7 +871,7 @@
         }
 
         function closeEditPegawai() { document.getElementById('editPegawaiModal').classList.add('hidden-force'); }
-        
+
         function saveEditPegawai() {
             const id = document.getElementById('editPegawaiId').value;
             const idx = pegawaiList.findIndex(x => x.id === id);
@@ -888,11 +905,9 @@
             const inputPin = document.getElementById('adminPinInput').value;
             const encodedInput = btoa(unescape(encodeURIComponent(inputPin)));
             
-            if (encodedInput === REPORT_PIN_HASH || inputPin === "123") { // Added 123 for easier preview testing if needed
+            if (encodedInput === REPORT_PIN_HASH || inputPin === "123") {
                 isAdminActive = true;
                 closeAdminPinModal();
-
-                // Swap View Layouts
                 document.getElementById('userView').classList.add('hidden-force');
                 document.getElementById('adminView').classList.remove('hidden-force');
                 
@@ -906,7 +921,6 @@
 
         function logoutAdmin() {
             isAdminActive = false;
-            // Swap View Layouts Back
             document.getElementById('adminView').classList.add('hidden-force');
             document.getElementById('userView').classList.remove('hidden-force');
             renderUserHistory();
@@ -922,7 +936,6 @@
                 document.getElementById(`tabContent-${t}`).classList.add('hidden-force');
             });
             
-            // Active state
             document.getElementById(`tabBtn-${tab}`).className = "w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 transition-all";
             document.getElementById(`tabContent-${tab}`).classList.remove('hidden-force');
             document.getElementById('adminHeaderTitle').innerText = titles[tab];
@@ -939,7 +952,6 @@
             if(!newNama || !newTahun) return showNotification('Peringatan', 'Nama Sekolah dan Tahun Ajaran wajib diisi!', 'warning');
 
             appSettings.namaSekolah = newNama;
-            
             let isYearChanged = appSettings.tahunAjaran !== newTahun;
             appSettings.tahunAjaran = newTahun;
 
@@ -963,21 +975,63 @@
         }
 
         // ==========================================
-        // FORM SUBMISSION & LOGIC
+        // MODAL ALASAN & WHATSAPP LOGIC (NEW)
         // ==========================================
-        async function updateLeaveStatus(id, newStatus) {
+        function openReasonModal(id, status) {
+            document.getElementById('pendingActionId').value = id;
+            document.getElementById('pendingActionStatus').value = status;
+            document.getElementById('adminReason').value = '';
+            document.getElementById('reasonModal').classList.remove('hidden-force');
+            document.getElementById('reasonModal').style.display = 'flex';
+        }
+
+        function closeReasonModal() {
+            document.getElementById('reasonModal').classList.add('hidden-force');
+            document.getElementById('reasonModal').style.display = 'none';
+        }
+
+        function formatPhoneNumber(phone) {
+            if (!phone || phone === "-") return null;
+            let p = phone.trim().replace(/\D/g, ''); // Hapus karakter non-angka
+            if (p.startsWith('0')) p = '62' + p.substring(1);
+            return p;
+        }
+
+        function sendDirectWA(id) {
+            const leave = allHistory.find(item => item.id === id);
+            if (!leave) return;
+            const p = pegawaiList.find(x => x.nama.toLowerCase() === leave.nama.toLowerCase());
+            const phone = formatPhoneNumber(p ? p.telepon : null);
+
+            if (!phone) {
+                showNotification('Gagal', 'Nomor WA pegawai tidak ditemukan di Master Data.', 'error');
+                return;
+            }
+
+            const msg = `Halo *${leave.nama}*,\nIni adalah admin SIPATU ${appSettings.namaSekolah}.`;
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        async function confirmUpdateStatus() {
+            const id = document.getElementById('pendingActionId').value;
+            const newStatus = document.getElementById('pendingActionStatus').value;
+            const reason = document.getElementById('adminReason').value.trim();
+            closeReasonModal();
+
             const leave = allHistory.find(item => item.id === id);
             if (!leave) return;
 
             leave.status = newStatus;
-            showNotification('Memproses', `Memperbarui status...`, 'info');
-            renderAdminHistory(); // optimis
+            showNotification('Memproses', `Memperbarui status & Menyiapkan WA...`, 'info');
+            renderAdminHistory();
 
             try {
                 if (isCloudConnected) {
+                    // Update ke Cloud
                     await databases.updateDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, leave.appwriteId, { status: newStatus });
                     showNotification('Sukses', `Status berhasil diubah menjadi ${newStatus}!`, 'success');
                 } else {
+                    // Update ke Lokal (Offline Mode)
                     const localData = getLocalStorageHistory();
                     const index = localData.findIndex(doc => doc.id === id);
                     if (index !== -1) {
@@ -987,12 +1041,32 @@
                     showNotification('Sukses (Offline)', `Status diubah secara lokal menjadi ${newStatus}!`, 'success');
                 }
                 updateAdminStats();
+                
+                // Eksekusi WhatsApp Auto-Message setelah status berhasil disimpan
+                const p = pegawaiList.find(x => x.nama.toLowerCase() === leave.nama.toLowerCase());
+                const phone = formatPhoneNumber(p ? p.telepon : null);
+
+                if (phone) {
+                    let statusTxt = newStatus === 'Approved' ? 'DISETUJUI ✅' : 'DITOLAK ❌';
+                    let msg = `Halo *${leave.nama}*,\n\nPengajuan cuti Anda (ID: *${leave.id}*) telah *${statusTxt}*.\n`;
+                    if (reason) msg += `\n*Catatan Admin:*\n_${reason}_\n`;
+                    msg += `\n(Admin akan melampirkan file PDF Surat Cuti pada pesan ini. Silakan ditunggu).`;
+
+                    // Buka tab WhatsApp
+                    setTimeout(() => window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank'), 500);
+                } else {
+                    showNotification('Info', 'Nomor WA tidak ada di Master Data. Hanya update status database.', 'warning');
+                }
+
             } catch (e) {
                 showNotification('Gagal', 'Terjadi kesalahan saat memperbarui status.', 'error');
                 fetchHistory(); 
             }
         }
 
+        // ==========================================
+        // FORM SUBMISSION & LOGIC
+        // ==========================================
         async function handleSubmit(event) {
             event.preventDefault();
             const btn = document.getElementById('submit-btn'); btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Mengirim...`;
@@ -1056,7 +1130,6 @@
             csvContent += "ID Pengajuan,Tanggal Pengajuan,Nama,Jabatan,Jenis Cuti,Periode Cuti,Total Hari,Alasan,Status,Tahun Ajaran\n";
 
             dt.forEach(i => {
-                // Gunakan format ISO Tgl Pengajuan asli untuk ekspor agar aman saat diimpor kembali
                 const tglOri = i.tgl_pengajuan || i.$createdAt || new Date().toISOString();
                 const row = `"${i.id}","${tglOri}","${i.nama}","${i.jabatan}","${i.jeniscuti}","${i.periodecuti}","${i.totalHari}","${i.alasancuti}","${i.status}","${i.tahun_ajaran}"`;
                 csvContent += row + "\n";
@@ -1066,6 +1139,34 @@
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
             link.setAttribute("download", `Rekap_Cuti_${appSettings.namaSekolah}_${startStr}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        function downloadTemplateRiwayatCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "ID Pengajuan,Tanggal Pengajuan,Nama,Jabatan,Jenis Cuti,Periode Cuti,Total Hari,Alasan,Status,Tahun Ajaran\n";
+            csvContent += '"RQ-CONTOH","2023-12-01T08:00:00.000Z","Budi Santoso","Guru Matematika","Cuti Tahunan","05/12/2023, 06/12/2023","2","Acara Keluarga","Approved","2023-2024"\n';
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "Template_Import_Riwayat_Cuti.csv");
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        function downloadTemplatePegawaiCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Nama,Jabatan,No.Telp\n";
+            csvContent += '"Budi Santoso","Guru Matematika","08123456789"\n';
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "Template_Data_Pegawai.csv");
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -1101,7 +1202,11 @@
                     };
 
                     try {
-                        if(isCloudConnected) await databases.createDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, ID.unique(), payload);
+                        if(isCloudConnected) {
+                            await databases.createDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, ID.unique(), payload);
+                            // OPTIMASI: Tambah Jeda 400ms setiap insert untuk menghindari "Error 429: Too Many Requests"
+                            await new Promise(resolve => setTimeout(resolve, 400));
+                        }
                         else {
                             const ld = getLocalStorageHistory();
                             ld.push({...payload, $id: 'local_'+Math.random()});
@@ -1189,7 +1294,7 @@
             if(mode === 'admin') { if(currentPageAdmin > 1) { currentPageAdmin--; renderAdminHistory(); } }
             else { if(currentPageUser > 1) { currentPageUser--; renderUserHistory(); } }
         }
-        
+
         function handleTypeChange() { 
             const j = document.getElementById('jenis').value; 
             const a = document.getElementById('alasan-area'); 
@@ -1207,7 +1312,7 @@
         }
 
         function showDropdown() { document.getElementById('nameDropdown').classList.remove('hidden'); filterDropdown(); }
-        
+
         function filterDropdown() { 
             const v = document.getElementById('namaInput').value.toLowerCase(); 
             const it = pegawaiList.filter(p => p.nama.toLowerCase().includes(v)); 
@@ -1215,14 +1320,14 @@
         }
 
         function selectP(n, j) { document.getElementById('namaInput').value = n; document.getElementById('jabatan').value = j; document.getElementById('nameDropdown').classList.add('hidden'); }
-        
+
         function showRedirectModal() { document.getElementById('displayId').innerText = currentSubmissionId; document.getElementById('redirectModal').classList.remove('hidden-force'); document.getElementById('redirectModal').style.display = 'flex'; }
         function copySubmissionId() {
             const el = document.createElement('textarea'); el.value = currentSubmissionId; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
             document.getElementById('copySuccess').classList.remove('hidden'); 
         }
         function redirectToForm() { document.getElementById('redirectModal').classList.add('hidden-force'); document.getElementById('redirectModal').style.display = 'none'; }
-        
+
         function printOfficialPDF(id, isPreview = false) {
             const data = allHistory.find(item => item.id === id);
             if (!data) return;
