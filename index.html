@@ -1097,20 +1097,50 @@
             document.getElementById('importProgressModal').style.display = 'none';
         }
 
-        // Mengamankan parsing string tanggal ke format ISO yang valid
+        // Mengamankan parsing string tanggal ke format ISO yang valid dengan berbagai variasi format (DIPERBARUI - SANGAT KUAT)
         function formatISOFromString(str) {
             if (!str) return new Date().toISOString();
-            // Jika formatnya 'yyyy-mm-ddThh:mm...'
-            if (str.includes('T')) return str;
-            const parsed = new Date(str);
-            if (!isNaN(parsed.getTime())) return parsed.getTime();
+            str = str.trim();
             
-            // Coba parsing manual dd/mm/yyyy
-            const parts = str.split('/');
-            if (parts.length === 3) {
-                const dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
-                if (!isNaN(dateObj.getTime())) return dateObj.toISOString();
+            if (str.includes('T')) {
+                const d = new Date(str);
+                if (!isNaN(d.getTime())) return d.toISOString();
             }
+            
+            // Bersihkan potensi tanda kutip ganda atau tunggal
+            str = str.replace(/["']/g, '');
+
+            // Mengurai format DD/MM/YYYY, DD-MM-YYYY, atau DD.MM.YYYY (opsional dengan jam:menit:detik)
+            const slashPattern = /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})(?:\s+(\d{1,2}):(\d{1,2}):?(\d{1,2})?)?$/;
+            const matchSlash = str.match(slashPattern);
+            if (matchSlash) {
+                const day = parseInt(matchSlash[1], 10);
+                const month = parseInt(matchSlash[2], 10) - 1;
+                const year = parseInt(matchSlash[3], 10);
+                const hrs = matchSlash[4] ? parseInt(matchSlash[4], 10) : 8;
+                const mins = matchSlash[5] ? parseInt(matchSlash[5], 10) : 0;
+                const secs = matchSlash[6] ? parseInt(matchSlash[6], 10) : 0;
+                const d = new Date(year, month, day, hrs, mins, secs);
+                if (!isNaN(d.getTime())) return d.toISOString();
+            }
+
+            // Mengurai format YYYY-MM-DD atau YYYY/MM/DD (opsional dengan jam:menit:detik)
+            const ymdPattern = /^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2}):?(\d{1,2})?)?$/;
+            const matchYmd = str.match(ymdPattern);
+            if (matchYmd) {
+                const year = parseInt(matchYmd[1], 10);
+                const month = parseInt(matchYmd[2], 10) - 1;
+                const day = parseInt(matchYmd[3], 10);
+                const hrs = matchYmd[4] ? parseInt(matchYmd[4], 10) : 8;
+                const mins = matchYmd[5] ? parseInt(matchYmd[5], 10) : 0;
+                const secs = matchYmd[6] ? parseInt(matchYmd[6], 10) : 0;
+                const d = new Date(year, month, day, hrs, mins, secs);
+                if (!isNaN(d.getTime())) return d.toISOString();
+            }
+
+            const parsed = new Date(str);
+            if (!isNaN(parsed.getTime())) return parsed.toISOString();
+
             return new Date().toISOString();
         }
 
