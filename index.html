@@ -2846,6 +2846,164 @@
             doc.save(`Rekap_Cuti_${appSettings.namaSekolah}_${startStr}.pdf`);
         }
 
+        function init() {
+            // Inisialisasi Flatpickr untuk kalender utama user
+            datePicker = flatpickr("#tglCuti", {
+                mode: "multiple",
+                dateFormat: "d/m/Y",
+                defaultDate: []
+            });
+
+            // Terapkan konfigurasi identitas sekolah ke UI
+            applySettingsToUI();
+            
+            // Render tabel pegawai master data
+            renderPegawaiTable();
+            
+            // Tarik riwayat cuti dari Cloud / Local storage
+            fetchHistory();
+
+            // Atur label penanggalan hari ini secara dinamis
+            const today = new Date();
+            const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            const todayLabel = document.getElementById('todayDateLabel');
+            if (todayLabel) {
+                todayLabel.innerText = today.toLocaleDateString('id-ID', options);
+            }
+        }
+
+        function applySettingsToUI() {
+            // Update semua label teks identitas instansi
+            const labels = {
+                'lblNamaSekolahUser': appSettings.namaSekolah,
+                'lblNamaSekolahAdmin': appSettings.namaSekolah,
+                'lblTahunAjaranUser': 'TA: ' + appSettings.tahunAjaran,
+                'lblTahunAjaranAdmin': appSettings.tahunAjaran
+            };
+            
+            for (let id in labels) {
+                const el = document.getElementById(id);
+                if (el) el.innerText = labels[id];
+            }
+
+            // Update nilai awal (default value) pada input di form pengaturan
+            const inputs = {
+                'setNamaSekolah': appSettings.namaSekolah,
+                'setTahunAjaran': appSettings.tahunAjaran,
+                'setWaAdmin': appSettings.waAdmin,
+                'setAlamatSekolah': appSettings.alamatSekolah || '',
+                'setEmailSekolah': appSettings.emailSekolah || '',
+                'setTelpSekolah': appSettings.telpSekolah || ''
+            };
+
+            for (let id in inputs) {
+                const el = document.getElementById(id);
+                if (el) el.value = inputs[id];
+            }
+
+            // Rendering pratinjau gambar logo instansi
+            const userLogo = document.getElementById('userLogo');
+            const adminLogo = document.getElementById('adminLogo');
+            const previewLogo = document.getElementById('previewLogo');
+            const userFallback = document.getElementById('userIconFallback');
+            const adminFallback = document.getElementById('adminIconFallback');
+            const previewFallback = document.getElementById('previewFallback');
+
+            if (appSettings.logoBase64) {
+                if (userLogo) { userLogo.src = appSettings.logoBase64; userLogo.classList.remove('hidden'); }
+                if (userFallback) userFallback.classList.add('hidden');
+
+                if (adminLogo) { adminLogo.src = appSettings.logoBase64; adminLogo.classList.remove('hidden'); }
+                if (adminFallback) adminFallback.classList.add('hidden');
+
+                if (previewLogo) { previewLogo.src = appSettings.logoBase64; previewLogo.classList.remove('hidden'); }
+                if (previewFallback) previewFallback.classList.add('hidden');
+            } else {
+                if (userLogo) userLogo.classList.add('hidden');
+                if (userFallback) userFallback.classList.remove('hidden');
+
+                if (adminLogo) adminLogo.classList.add('hidden');
+                if (adminFallback) adminFallback.classList.remove('hidden');
+
+                if (previewLogo) previewLogo.classList.add('hidden');
+                if (previewFallback) previewFallback.classList.remove('hidden');
+            }
+        }
+
+        function getLocalStorageHistory() {
+            try {
+                return JSON.parse(localStorage.getItem('SIPATU_HISTORY')) || [];
+            } catch (e) {
+                console.error("Gagal membaca storage riwayat lokal:", e);
+                return [];
+            }
+        }
+
+        function saveLocalStorageHistory(data) {
+            try {
+                localStorage.setItem('SIPATU_HISTORY', JSON.stringify(data));
+            } catch (e) {
+                console.error("Gagal menulis ke storage riwayat lokal:", e);
+            }
+        }
+
+        function openDeleteAllCutiModal() {
+            const input = document.getElementById('deleteAllConfirmationInput');
+            if (input) input.value = "";
+            const modal = document.getElementById('deleteAllCutiModal');
+            if (modal) {
+                modal.classList.remove('hidden-force');
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeDeleteAllCutiModal() {
+            const modal = document.getElementById('deleteAllCutiModal');
+            if (modal) {
+                modal.classList.add('hidden-force');
+                modal.style.display = 'none';
+            }
+        }
+
+        async function processDeleteAllCuti() {
+            const confirmInput = document.getElementById('deleteAllConfirmationInput')?.value.trim();
+            if (confirmInput !== "KONFIRMASI") {
+                showNotification("Gagal", "Kata kunci salah! Ketik kata KONFIRMASI secara tepat untuk melanjutkan.", "error");
+                return;
+            }
+
+            showNotification("Memproses", "Sedang mengosongkan seluruh basis data cuti...", "info");
+            closeDeleteAllCutiModal();
+
+            try {
+                // 1. Kosongkan data lokal
+                saveLocalStorageHistory([]);
+
+                // 2. Kosongkan data di server Appwrite cloud (jika sedang online)
+                if (isCloudConnected) {
+                    try {
+                        const response = await databases.listDocuments(APPWRITE_DATABASE, APPWRITE_COLLECTION, [Query.limit(100)]);
+                        const deletePromises = response.documents.map(doc => 
+                            databases.deleteDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, doc.$id)
+                        );
+                        await Promise.all(deletePromises);
+                        showNotification("Sukses", "Semua data di cloud & lokal berhasil dibersihkan!", "success");
+                    } catch (err) {
+                        console.error("Sebagian data cloud gagal terhapus:", err);
+                        showNotification("Sukses Sebagian", "Penyimpanan lokal berhasil dibersihkan, namun cloud mengalami kendala respons.", "warning");
+                    }
+                } else {
+                    showNotification("Sukses", "Seluruh riwayat lokal perangkat berhasil dikosongkan!", "success");
+                }
+
+                // Perbarui tampilan histori
+                await fetchHistory();
+            } catch (e) {
+                console.error("Gagal melakukan pemeliharaan database:", e);
+                showNotification("Gagal", "Terjadi kesalahan internal saat proses pembersihan.", "error");
+            }
+        }
+
         window.onload = init;
     </script>
 </body>
