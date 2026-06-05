@@ -1460,7 +1460,7 @@
             if (!item) return;
 
             try {
-                if (isCloudConnected) {
+                if (isCloudConnected && !String(item.appwriteId).startsWith('local_')) {
                     await databases.updateDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, item.appwriteId, {
                         lampiran: processedLampiranBase64
                     });
@@ -1479,6 +1479,12 @@
                 await fetchHistory();
             } catch (err) {
                 console.error("Kesalahan update lampiran:", err);
+                const localData = getLocalStorageHistory();
+                const index = localData.findIndex(doc => doc.id === id);
+                if (index !== -1) {
+                    localData[index].lampiran = processedLampiranBase64;
+                    saveLocalStorageHistory(localData);
+                }
                 showNotification('Sukses Lokal', 'Bukti sukses distempel & tersimpan di perangkat.', 'success');
                 closeUploadLampiranModal();
                 await fetchHistory();
@@ -1569,7 +1575,6 @@
             showNotification('Memproses', 'Menyimpan rincian cuti...', 'info');
 
             try {
-                // Konversi tanggal pengajuan d/m/Y yang dipilih kembali ke string ISO standar
                 const tglAjuISO = formatISOFromString(tglPengajuan);
 
                 const updatedPayload = {
@@ -1579,7 +1584,7 @@
                     tgl_pengajuan: tglAjuISO
                 };
 
-                if (isCloudConnected) {
+                if (isCloudConnected && !String(item.appwriteId).startsWith('local_')) {
                     await databases.updateDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, item.appwriteId, updatedPayload);
                     showNotification('Sukses', 'Rincian pengajuan berhasil diperbarui!', 'success');
                 } else {
@@ -1597,8 +1602,19 @@
                 closeEditCuti();
                 await fetchHistory();
             } catch (e) {
-                console.error(e);
-                showNotification('Gagal', 'Terjadi kesalahan saat memperbarui rincian.', 'error');
+                console.error("Gagal sinkronisasi update cuti ke Appwrite:", e);
+                const localData = getLocalStorageHistory();
+                const index = localData.findIndex(doc => doc.id === id);
+                if (index !== -1) {
+                    localData[index].jeniscuti = jenis;
+                    localData[index].periodecuti = tgl;
+                    localData[index].alasancuti = alasan || "-";
+                    localData[index].tgl_pengajuan = formatISOFromString(tglPengajuan);
+                    saveLocalStorageHistory(localData);
+                }
+                showNotification('Sukses Lokal', 'Peringatan: Gagal sinkronisasi rincian ke Cloud, namun disimpan lokal.', 'warning');
+                closeEditCuti();
+                await fetchHistory();
             }
         }
 
@@ -1622,7 +1638,7 @@
             closeDeleteCutiModal();
 
             try {
-                if (isCloudConnected) {
+                if (isCloudConnected && !String(item.appwriteId).startsWith('local_')) {
                     await databases.deleteDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, item.appwriteId);
                     showNotification('Sukses', 'Pengajuan berhasil dibatalkan & dihapus!', 'success');
                 } else {
@@ -1633,8 +1649,12 @@
                 }
                 await fetchHistory();
             } catch (e) {
-                console.error(e);
-                showNotification('Gagal', 'Gagal membatalkan pengajuan cuti.', 'error');
+                console.error("Gagal menghapus pengajuan di Appwrite:", e);
+                let localData = getLocalStorageHistory();
+                localData = localData.filter(doc => doc.id !== id);
+                saveLocalStorageHistory(localData);
+                showNotification('Sukses Lokal', 'Gagal hapus dari Cloud, namun berhasil dibatalkan dari perangkat ini.', 'warning');
+                await fetchHistory();
             }
         }
 
@@ -1732,7 +1752,7 @@
             renderAdminHistory();
 
             try {
-                if (isCloudConnected) {
+                if (isCloudConnected && !String(leave.appwriteId).startsWith('local_')) {
                     await databases.updateDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, leave.appwriteId, { status: status });
                     showNotification('Sukses', `Status berhasil diubah menjadi ${status}!`, 'success');
                 } else {
@@ -1761,8 +1781,31 @@
                 }
                 await fetchHistory();
             } catch (e) {
-                showNotification('Gagal', 'Terjadi kesalahan saat memperbarui status.', 'error');
-                fetchHistory(); 
+                console.error("Gagal mengubah status di Appwrite:", e);
+                // Fallback otomatis ke penyimpanan lokal jika server cloud bermasalah / menolak izin update
+                const localData = getLocalStorageHistory();
+                const index = localData.findIndex(doc => doc.id === id);
+                if (index !== -1) {
+                    localData[index].status = status;
+                    saveLocalStorageHistory(localData);
+                }
+                showNotification('Sukses Lokal', 'Peringatan: Gagal sinkronisasi ke Cloud (Izin/Koneksi), namun berhasil disimpan secara lokal.', 'warning');
+                updateAdminStats();
+                
+                const p = pegawaiList.find(x => x.nama.toLowerCase() === leave.nama.toLowerCase());
+                const phone = formatPhoneNumber(p ? p.telepon : null);
+
+                if (phone) {
+                    let statusTxt = status === 'Approved' ? 'DISETUJUI ✅' : 'DITOLAK ❌';
+                    let msg = `Halo *${leave.nama}*,\n\nPengajuan cuti Anda (ID: *${leave.id}*) telah *${statusTxt}*.\n`;
+                    if (reason) msg += `\n*Catatan Admin:*\n_${reason}_\n`;
+                    msg += `\nUnduh surat resmi keputusan Anda di tautan berikut:\nhttps://sipatu.layanan.go.id/download/pdf/${leave.id}`;
+
+                    setTimeout(() => window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank'), 500);
+                } else {
+                    showNotification('Info', 'Nomor WA tidak ada di Master Data. Hanya update status database.', 'warning');
+                }
+                await fetchHistory();
             }
         }
 
@@ -2356,7 +2399,7 @@
             renderAdminHistory();
 
             try {
-                if (isCloudConnected) {
+                if (isCloudConnected && !String(leave.appwriteId).startsWith('local_')) {
                     await databases.updateDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, leave.appwriteId, { status: newStatus });
                     showNotification('Sukses', `Status berhasil diubah menjadi ${newStatus}!`, 'success');
                 } else {
@@ -2385,8 +2428,30 @@
                 }
 
             } catch (e) {
-                showNotification('Gagal', 'Terjadi kesalahan saat memperbarui status.', 'error');
-                fetchHistory(); 
+                console.error("Gagal mengonfirmasi status di Appwrite:", e);
+                // Fallback lokal instan
+                const localData = getLocalStorageHistory();
+                const index = localData.findIndex(doc => doc.id === id);
+                if (index !== -1) {
+                    localData[index].status = newStatus;
+                    saveLocalStorageHistory(localData);
+                }
+                showNotification('Sukses Lokal', 'Peringatan: Gagal sinkronisasi ke Cloud (Izin/Koneksi), namun berhasil disimpan secara lokal.', 'warning');
+                updateAdminStats();
+                
+                const p = pegawaiList.find(x => x.nama.toLowerCase() === leave.nama.toLowerCase());
+                const phone = formatPhoneNumber(p ? p.telepon : null);
+
+                if (phone) {
+                    let statusTxt = newStatus === 'Approved' ? 'DISETUJUI ✅' : 'DITOLAK ❌';
+                    let msg = `Halo *${leave.nama}*,\n\nPengajuan cuti Anda (ID: *${leave.id}*) telah *${statusTxt}*.\n`;
+                    if (reason) msg += `\n*Catatan Admin:*\n_${reason}_\n`;
+                    msg += `\nUnduh surat resmi keputusan Anda di tautan berikut:\nhttps://sipatu.layanan.go.id/download/pdf/${leave.id}`;
+
+                    setTimeout(() => window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank'), 500);
+                } else {
+                    showNotification('Info', 'Nomor WA tidak ada di Master Data. Hanya update status database.', 'warning');
+                }
             }
         }
 
