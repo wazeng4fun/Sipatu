@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIPATU - SMK Link and Match</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- APPWRITE WEB SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.1"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=300;400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .glass-card { background: white; border-radius: 1.25rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); border: 1px solid #e2e8f0; transition: all 0.3s ease; }
+        .status-badge-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        .dot-pending { background-color: #3b82f6; box-shadow: 0 0 0 4px #eff6ff; }
+        .dot-approved { background-color: #22c55e; box-shadow: 0 0 0 4px #f0fdf4; }
+        .dot-rejected { background-color: #ef4444; box-shadow: 0 0 0 4px #fef2f2; }
+        #nameDropdown::-webkit-scrollbar { width: 6px; }
+        #nameDropdown::-webkit-scrollbar-track { background: #f1f5f9; }
+        #nameDropdown::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-indigo-600 p-3 rounded-2xl shadow-lg">
+                    <i class="fas fa-calendar-alt text-white text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-extrabold text-slate-800">SIPATU <span class="text-indigo-600">Smart</span></h1>
+                    <div class="flex flex-wrap items-center gap-2 mt-1">
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">SMK Link and Match <span id="lblTahunAjaran" class="text-indigo-400"></span></p>
+                        <span id="syncIndicator" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100">
+                            <i class="fas fa-circle-notch fa-spin text-[8px]"></i> Menghubungkan...
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <button id="btnLaporan" onclick="openReportModal()" class="hidden bg-white px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-indigo-600 shadow-sm hover:bg-indigo-50 transition-all flex items-center gap-2">
+                    <i class="fas fa-file-pdf"></i> Laporan Berkala
+                </button>
+
+                <!-- Tombol Navigasi Mode (Toggle Pegawai / Admin) -->
+                <button id="btnAdminAccess" onclick="handleAdminAuthToggle()" class="bg-indigo-600 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition-all flex items-center gap-2">
+                    <i class="fas fa-lock"></i> Portal Admin
+                </button>
+            </div>
+        </header>
+
+        <div id="view-pengajuan" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Form Pengajuan Kiri (Berubah Menjadi Statistik ketika dalam Mode Admin) -->
+            <div class="lg:col-span-4" id="leftPanel">
+                <div class="glass-card p-6 sticky top-8" id="formCard">
+                    <h2 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <i class="fas fa-edit text-indigo-500"></i> Buat Pengajuan
+                    </h2>
+                    <form id="cutiForm" onsubmit="handleSubmit(event)" class="space-y-4">
+                        <div class="relative" id="nameContainer">
+                            <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Nama Pegawai</label>
+                            <input type="text" id="namaInput" placeholder="Ketik nama..." autocomplete="off" onfocus="showDropdown()" oninput="filterDropdown()" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-medium focus:border-indigo-500 transition-all">
+                            <div id="nameDropdown" class="absolute w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto hidden"></div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Jabatan</label>
+                            <input type="text" id="jabatan" readonly placeholder="Otomatis..." class="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 text-sm cursor-not-allowed">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Jenis Cuti</label>
+                                <select id="jenis" onchange="handleTypeChange()" class="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium">
+                                    <option value="Cuti Tahunan">Tahunan</option>
+                                    <option value="Cuti Mendadak">Mendadak</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Periode</label>
+                                <input type="text" id="tglCuti" required placeholder="Pilih tgl..." class="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium">
+                            </div>
+                        </div>
+                        <div id="alasan-area" class="hidden">
+                            <label class="block text-[10px] font-bold text-amber-600 uppercase mb-1">Alasan & Mitigasi</label>
+                            <textarea id="alasan" rows="3" placeholder="Jelaskan alasan Anda..." class="w-full px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl text-sm"></textarea>
+                        </div>
+                        <button type="submit" id="submit-btn" class="w-full bg-slate-900 hover:bg-indigo-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-slate-200">
+                            Kirim Pengajuan
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Riwayat & Monitoring Kanan -->
+            <div class="lg:col-span-8 space-y-8">
+                <div class="glass-card flex flex-col overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <h2 class="font-bold text-slate-800" id="tableTitle">Riwayat Pengajuan</h2>
+                            <span id="badgeAdminMode" class="hidden px-2 py-0.5 bg-red-50 text-red-600 text-[9px] font-bold rounded uppercase tracking-wider border border-red-100">MODE ADMIN</span>
+                        </div>
+                        <input type="text" id="search" oninput="handleSearch()" placeholder="Cari nama atau ID..." class="w-full sm:w-auto px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="bg-slate-50/50">
+                                    <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase">Pegawai</th>
+                                    <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase">Kategori & Periode</th>
+                                    <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase text-center" id="actionHeader">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyBody" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                    <div class="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/30">
+                        <span id="paginationInfo" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Halaman 1 dari 1</span>
+                        <div class="flex gap-2">
+                            <button onclick="prevPage()" id="btnPrev" class="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-indigo-50 disabled:opacity-50 transition-all">Sebelumnya</button>
+                            <button onclick="nextPage()" id="btnNext" class="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-indigo-50 disabled:opacity-50 transition-all">Berikutnya</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monitor Cuti (Hari Ini) -->
+                <div class="glass-card overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-white">
+                        <div class="flex items-center gap-3">
+                            <div class="w-2 h-8 bg-amber-500 rounded-full"></div>
+                            <div>
+                                <h2 class="font-bold text-slate-800">Monitor Cuti</h2>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase" id="todayDateLabel">Hari Ini</p>
+                            </div>
+                        </div>
+                        <span class="px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[10px] font-bold uppercase tracking-widest">Real-Time</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <tbody id="upcomingBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Verifikasi PIN Admin -->
+    <div id="adminPinModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-sm shadow-2xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-100 text-indigo-600 p-2 rounded-lg"><i class="fas fa-shield-alt"></i></div>
+                    <h3 class="font-bold text-slate-800">Autentikasi Admin</h3>
+                </div>
+                <button onclick="closeAdminPinModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-widest text-center">Masukkan PIN Akses</label>
+                    <input type="password" id="adminPinInput" placeholder="••••••" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-center text-lg tracking-widest font-bold">
+                    <p id="admin-pin-error" class="text-red-500 text-[10px] font-bold mt-1 hidden text-center uppercase">PIN Salah!</p>
+                </div>
+                <button onclick="verifyAdminAccess()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+                    <i class="fas fa-sign-in-alt"></i> Masuk Sistem
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Laporan -->
+    <div id="reportModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-100 text-indigo-600 p-2 rounded-lg"><i class="fas fa-file-export"></i></div>
+                    <h3 class="font-bold text-slate-800">Laporan Berkala</h3>
+                </div>
+                <button onclick="closeReportModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-widest text-center">Otoritas Akses</label>
+                    <input type="password" id="reportPin" placeholder="••••••" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-center text-lg tracking-widest font-bold">
+                    <p id="pin-error" class="text-red-500 text-[10px] font-bold mt-1 hidden text-center uppercase">PIN Salah!</p>
+                </div>
+                <div id="filter-section" class="space-y-4 border-t border-slate-100 pt-4 opacity-30 pointer-events-none transition-all">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">Mulai</label>
+                            <input type="date" id="reportStart" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">Sampai</label>
+                            <input type="date" id="reportEnd" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm">
+                        </div>
+                    </div>
+                    <button onclick="generatePeriodicPDF()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+                        <i class="fas fa-download"></i> Unduh Rekapan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal ID Pengajuan -->
+    <div id="redirectModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl p-8 text-center">
+            <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-id-card text-2xl"></i></div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Salin ID Pengajuan</h3>
+            <div class="flex items-center gap-2 bg-slate-100 p-4 rounded-xl border border-slate-200 mb-6">
+                <span id="displayId" class="text-lg font-mono font-bold text-indigo-600 tracking-wider w-full"></span>
+                <button onclick="copySubmissionId()" class="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-all"><i class="fas fa-copy"></i></button>
+            </div>
+            <div id="copySuccess" class="hidden text-emerald-600 text-xs font-bold mb-4"><i class="fas fa-check-circle"></i> ID Berhasil disalin!</div>
+            <button id="btnGoToForm" disabled onclick="redirectToForm()" class="w-full bg-slate-200 text-slate-400 font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all">Selesai <i class="fas fa-check"></i></button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // KONFIGURASI APPWRITE TERINTEGRASI (REAL)
+        // ==========================================
+        const APPWRITE_ENDPOINT = 'https://cloud.appwrite.io/v1';
+        const APPWRITE_PROJECT = '6a22a17c000781c6f640';       // Project ID Anda
+        const APPWRITE_DATABASE = '6a22a383001fc5099c0e';     // Database ID Anda
+        const APPWRITE_COLLECTION = 'pengajuancuti';           // Collection ID Anda
+
+        const { Client, Databases, ID, Query } = window.Appwrite;
+        const client = new Client().setEndpoint(APPWRITE_ENDPOINT).setProject(APPWRITE_PROJECT);
+        const databases = new Databases(client);
+
+        // Data Pegawai (Menggunakan Google Sheet Publik yang ringan)
+        const CSV_PEGAWAI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSSiqcVdHShSAnCXEBQOB4MUNdOYU2yKWWa5m5YuOcPXVo3b967XtQZGjVd3PMkQW_PWKWrVnfllC59/pub?gid=940631284&single=true&output=csv";
+        
+        const REPORT_PIN_HASH = "U2lwYXR1OTU="; // PIN "Sipatu95"
+
+        let pegawaiList = [], allHistory = [], filtered = [];
+        let datePicker, currentSubmissionId = "";
+        let currentPage = 1;
+        const rowsPerPage = 5;
+        let isAdminActive = false;
+        let isCloudConnected = false;
+
+        // MANAJEMEN TAHUN AJARAN AKTIF DI CLIENT-SIDE
+        let activeTahunAjaran = localStorage.getItem('SIPATU_TA_AKTIF') || "2023-2024";
+
+        document.addEventListener('click', function(e) {
+            const container = document.getElementById('nameContainer');
+            const dropdown = document.getElementById('nameDropdown');
+            if (container && !container.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        // Regex Parser CSV yang kuat untuk menghandle koma dalam tanda kutip (Gelar Pendidikan)
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.trim());
+            return result;
+        }
+
+        function parseCustomDate(dateStr) {
+            if (!dateStr || dateStr === "-") return null;
+            if (dateStr instanceof Date) return dateStr;
+            if (typeof dateStr === 'string' && dateStr.includes('T')) {
+                const parsedDate = new Date(dateStr);
+                if (!isNaN(parsedDate.getTime())) return parsedDate;
+            }
+            if (typeof dateStr === 'string' && dateStr.includes('/')) {
+                const parts = dateStr.split(' ')[0].split('/');
+                if (parts.length === 3) {
+                    if (parts[0].length === 4) return new Date(parts[0], parts[1] - 1, parts[2]);
+                    else return new Date(parts[2], parts[1] - 1, parts[0]);
+                }
+            }
+            const d = new Date(dateStr);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        function humanizeDate(di) {
+            const d = parseCustomDate(di);
+            if (!d) return "-";
+            return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        function humanizeRange(rs) {
+            if (!rs || rs === "-") return "-";
+            return rs.split(',').map(dStr => {
+                const d = parseCustomDate(dStr.trim());
+                if (!d) return dStr;
+                return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+            }).join(', ');
+        }
+
+        async function init() {
+            document.getElementById('lblTahunAjaran').innerText = `(${activeTahunAjaran})`;
+            datePicker = flatpickr("#tglCuti", { mode: "multiple", dateFormat: "d/m/Y", minDate: "today" });
+            document.getElementById('todayDateLabel').innerText = humanizeDate(new Date());
+            
+            await fetchEmployees(); 
+            await fetchHistory(); 
+            setupPinListener();
+        }
+
+        async function fetchEmployees() {
+            try {
+                const res = await fetch(CSV_PEGAWAI);
+                const text = await res.text();
+                pegawaiList = text.split('\n').slice(1).map(row => {
+                    const c = parseCSVLine(row);
+                    return { 
+                        nama: c[0]?.replace(/"/g, '').trim(), 
+                        jabatan: c[1]?.replace(/"/g, '').trim() 
+                    };
+                }).filter(p => p.nama);
+            } catch (e) { console.error(e); }
+        }
+
+        // FUNGSI BACKUP & FALLBACK DATABASE LOKAL
+        function getLocalStorageHistory() {
+            try {
+                return JSON.parse(localStorage.getItem('SIPATU_LOCAL_DATABASE') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveLocalStorageHistory(data) {
+            try {
+                localStorage.setItem('SIPATU_LOCAL_DATABASE', JSON.stringify(data));
+            } catch (e) {
+                console.error("Gagal menulis ke localStorage:", e);
+            }
+        }
+
+        function updateSyncStatus(connected) {
+            isCloudConnected = connected;
+            const indicator = document.getElementById('syncIndicator');
+            if (connected) {
+                indicator.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100";
+                indicator.innerHTML = `<i class="fas fa-cloud text-[8px]"></i> Terhubung ke Cloud`;
+            } else {
+                indicator.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100 animate-pulse";
+                indicator.innerHTML = `<i class="fas fa-hdd text-[8px]"></i> Mode Database Lokal`;
+            }
+        }
+
+        async function fetchHistory() {
+            try {
+                // Mengambil dari Database Appwrite secara realtime
+                const response = await databases.listDocuments(
+                    APPWRITE_DATABASE,
+                    APPWRITE_COLLECTION,
+                    [
+                        Query.limit(500)
+                    ]
+                );
+                
+                // Jika sukses, sinkronisasikan cache lokal
+                saveLocalStorageHistory(response.documents);
+                updateSyncStatus(true);
+                processRawData(response.documents);
+            } catch (e) { 
+                console.warn("Gagal terhubung ke Appwrite (Menggunakan fallback lokal):", e); 
+                updateSyncStatus(false);
+                // Fallback ke penyimpanan offline localStorage
+                const offlineData = getLocalStorageHistory();
+                processRawData(offlineData);
+            }
+        }
+
+        function processRawData(documents) {
+            // Filter berdasarkan Tahun Ajaran Aktif dan urutkan tanggal terbaru
+            let rawData = documents.filter(doc => doc.tahun_ajaran === activeTahunAjaran);
+            rawData.sort((a, b) => new Date(b.tgl_pengajuan || b.$createdAt) - new Date(a.tgl_pengajuan || a.$createdAt));
+
+            allHistory = rawData.map(i => {
+                const rawPeriode = String(i.periodecuti || "-");
+                const tglAju = i.tgl_pengajuan || i.$createdAt || new Date().toISOString();
+                const parsedAju = parseCustomDate(tglAju);
+                
+                return { 
+                    ...i, 
+                    appwriteId: i.$id || i.id, // Simpan ID Internal Appwrite atau ID lokal
+                    displayPeriode: humanizeRange(rawPeriode), 
+                    totalHari: rawPeriode.split(',').filter(d => d.trim()).length, 
+                    tglPengajuanHuman: humanizeDate(tglAju),
+                    rawTglPengajuan: parsedAju,
+                    rawPeriodeList: rawPeriode.split(',').map(d => d.trim())
+                };
+            });
+            
+            filtered = [...allHistory];
+            render();
+            renderMonitorCuti();
+            if (isAdminActive) updateAdminStats();
+        }
+
+        function render() {
+            const tbody = document.getElementById('historyBody');
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const pageItems = filtered.slice(startIndex, startIndex + rowsPerPage);
+            const actionHeader = document.getElementById('actionHeader');
+
+            if (isAdminActive) {
+                actionHeader.innerText = "Konfirmasi & Preview";
+                actionHeader.className = "px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase text-center w-40";
+            } else {
+                actionHeader.innerText = "Aksi";
+                actionHeader.className = "px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase text-center";
+            }
+
+            tbody.innerHTML = pageItems.map(i => {
+                const status = (i.status || 'pending').toLowerCase();
+                let dotClass = "dot-pending";
+                if(status === "approved" || status === "disetujui") dotClass = "dot-approved";
+                if(status === "rejected" || status === "ditolak") dotClass = "dot-rejected";
+
+                let actionButtons = "";
+                if (isAdminActive) {
+                    actionButtons = `
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button onclick="updateLeaveStatus('${i.id}', 'Approved')" title="Setujui Pengajuan" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all">
+                                <i class="fas fa-check text-xs"></i>
+                            </button>
+                            <button onclick="updateLeaveStatus('${i.id}', 'Rejected')" title="Tolak Pengajuan" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all">
+                                <i class="fas fa-times text-xs"></i>
+                            </button>
+                            <button onclick="printOfficialPDF('${i.id}', true)" title="Preview Surat Cuti" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-600 hover:text-white transition-all">
+                                <i class="fas fa-eye text-xs"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    actionButtons = `
+                        <button onclick="printOfficialPDF('${i.id}', false)" title="Cetak Surat Cuti" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-600 hover:text-white transition-all">
+                            <i class="fas fa-print text-xs"></i>
+                        </button>
+                    `;
+                }
+
+                return `<tr class="hover:bg-slate-50 transition-all">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <span class="status-badge-dot ${dotClass}" title="${status}"></span>
+                            <div>
+                                <div class="font-bold text-slate-800 text-sm">${i.nama}</div>
+                                <div class="text-[9px] font-black text-slate-400 uppercase">ID: ${i.id}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-[10px] font-bold text-indigo-600 uppercase">${i.jeniscuti}</div>
+                        <div class="text-[10px] text-slate-500 font-medium">${i.displayPeriode}</div>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        ${actionButtons}
+                    </td>
+                </tr>`;
+            }).join('');
+
+            const totalPages = Math.ceil(filtered.length / rowsPerPage) || 1;
+            document.getElementById('paginationInfo').innerText = `Halaman ${currentPage} dari ${totalPages}`;
+            document.getElementById('btnPrev').disabled = currentPage === 1;
+            document.getElementById('btnNext').disabled = currentPage === totalPages;
+        }
+
+        function renderMonitorCuti() {
+            const tbody = document.getElementById('upcomingBody');
+            const today = new Date();
+            const day = today.getDate().toString().padStart(2, '0');
+            const month = (today.getMonth()+1).toString().padStart(2, '0');
+            const todayKey = `${day}/${month}/${today.getFullYear()}`;
+            
+            const listHariIni = [];
+
+            allHistory.forEach(item => {
+                const s = (item.status || "").toLowerCase();
+                const isApproved = s === "approved" || s === "disetujui";
+                const isPending = s === "pending" || s === "" || !s;
+                const isCutiTahunan = item.jeniscuti === "Cuti Tahunan";
+                const isCutiMendadak = item.jeniscuti === "Cuti Mendadak";
+
+                const allowedStatus = (isCutiTahunan && isApproved) || (isCutiMendadak && (isApproved || isPending));
+
+                if (allowedStatus) {
+                    if (item.rawPeriodeList.includes(todayKey)) {
+                        listHariIni.push(item);
+                    }
+                }
+            });
+
+            if (listHariIni.length === 0) {
+                tbody.innerHTML = `<tr><td class="px-6 py-12 text-center text-slate-400 flex flex-col items-center gap-2">
+                    <i class="fas fa-user-check text-2xl text-slate-200"></i>
+                    <p class="text-[11px] font-bold uppercase tracking-widest">Semua Staff Hadir Hari Ini</p>
+                </td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = listHariIni.map(it => {
+                const s = (it.status || 'pending').toLowerCase();
+                const isPending = s === "pending" || s === "" || !s;
+                const isApproved = s === "approved" || s === "disetujui";
+                
+                return `<tr class="hover:bg-slate-50 border-b border-slate-50 transition-all">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex flex-col">
+                                <div class="font-bold text-slate-800 text-sm">${it.nama}</div>
+                                <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tight">${it.jabatan}</div>
+                            </div>
+                            <div class="flex flex-col items-end gap-1">
+                                <span class="px-2 py-0.5 ${it.jeniscuti === 'Cuti Mendadak' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'} rounded text-[9px] font-bold uppercase border">
+                                    ${it.jeniscuti}
+                                </span>
+                                ${isPending ? '<span class="text-[8px] font-black text-blue-500 uppercase tracking-tighter bg-blue-50 px-1 rounded">MENUNGGU</span>' : ''}
+                                ${isApproved ? '<span class="text-[8px] font-black text-emerald-500 uppercase tracking-tighter bg-emerald-50 px-1 rounded">DISETUJUI</span>' : ''}
+                            </div>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function updateLeaveStatus(id, newStatus) {
+            const leave = allHistory.find(item => item.id === id);
+            if (!leave) return;
+
+            // Optimistic UI Update (Berubah sebelum API selesai)
+            leave.status = newStatus;
+            showNotification('Memproses', `Memperbarui status...`, 'info');
+            render();
+            renderMonitorCuti();
+
+            try {
+                if (isCloudConnected) {
+                    // UPDATE KE APPWRITE DATABASE
+                    await databases.updateDocument(
+                        APPWRITE_DATABASE, 
+                        APPWRITE_COLLECTION, 
+                        leave.appwriteId, 
+                        { status: newStatus }
+                    );
+                    showNotification('Sukses', `Status berhasil diubah menjadi ${newStatus}!`, 'success');
+                } else {
+                    // Simpan di Database lokal
+                    const localData = getLocalStorageHistory();
+                    const index = localData.findIndex(doc => doc.id === id);
+                    if (index !== -1) {
+                        localData[index].status = newStatus;
+                        saveLocalStorageHistory(localData);
+                    }
+                    showNotification('Sukses (Offline)', `Status diubah secara lokal menjadi ${newStatus}!`, 'success');
+                }
+                updateAdminStats();
+            } catch (e) {
+                showNotification('Gagal', 'Terjadi kesalahan saat memperbarui status.', 'error');
+                fetchHistory(); // Ambil ulang data jika gagal
+            }
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+            const btn = document.getElementById('submit-btn'); btn.disabled = true; btn.innerHTML = `Mengirim...`;
+            currentSubmissionId = "RQ-" + Math.random().toString(36).substring(2, 7).toUpperCase();
+            
+            const payload = { 
+                id: currentSubmissionId, 
+                nama: document.getElementById('namaInput').value, 
+                jabatan: document.getElementById('jabatan').value, 
+                jeniscuti: document.getElementById('jenis').value, 
+                periodecuti: document.getElementById('tglCuti').value, 
+                alasancuti: document.getElementById('alasan').value || "-",
+                tgl_pengajuan: new Date().toISOString(),
+                status: "Pending",
+                tahun_ajaran: activeTahunAjaran
+            };
+            
+            try {
+                if (isCloudConnected) {
+                    // POST CREATE KE APPWRITE DATABASE
+                    await databases.createDocument(
+                        APPWRITE_DATABASE,
+                        APPWRITE_COLLECTION,
+                        ID.unique(),
+                        payload
+                    );
+                    showNotification('Sukses', 'Pengajuan Cuti Berhasil Terkirim ke Cloud!', 'success');
+                } else {
+                    // Simpan ke offline fallback
+                    const localData = getLocalStorageHistory();
+                    localData.push({ ...payload, $id: 'local_' + currentSubmissionId });
+                    saveLocalStorageHistory(localData);
+                    showNotification('Sukses (Offline)', 'Pengajuan tersimpan di database lokal!', 'success');
+                }
+
+                if (payload.jeniscuti === "Cuti Mendadak") {
+                    showRedirectModal(); 
+                }
+                document.getElementById('cutiForm').reset(); 
+                setTimeout(fetchHistory, 1000); 
+            } catch (e) { 
+                // Jika Appwrite tiba-tiba gagal sewaktu-waktu
+                console.error(e);
+                const localData = getLocalStorageHistory();
+                localData.push({ ...payload, $id: 'local_' + currentSubmissionId });
+                saveLocalStorageHistory(localData);
+                showNotification('Sukses (Offline Fallback)', 'Koneksi cloud terganggu. Pengajuan disimpan secara lokal.', 'warning');
+                if (payload.jeniscuti === "Cuti Mendadak") {
+                    showRedirectModal(); 
+                }
+                document.getElementById('cutiForm').reset();
+                setTimeout(fetchHistory, 1000);
+            } finally { 
+                btn.disabled = false; btn.innerHTML = `Kirim Pengajuan`; 
+            }
+        }
+
+        function setActiveYear() {
+            const yearInput = document.getElementById('newSheetName').value.trim();
+            if (!yearInput) {
+                showNotification('Peringatan', 'Masukkan Tahun Ajaran terlebih dahulu!', 'warning');
+                return;
+            }
+            
+            // Simpan Ke Local Storage Browser
+            localStorage.setItem('SIPATU_TA_AKTIF', yearInput);
+            activeTahunAjaran = yearInput;
+            document.getElementById('lblTahunAjaran').innerText = `(${activeTahunAjaran})`;
+            
+            showNotification('Diaktifkan', `Menampilkan data khusus Tahun Ajaran: ${activeTahunAjaran}`, 'success');
+            document.getElementById('newSheetName').value = '';
+            
+            fetchHistory();
+        }
+
+        function printOfficialPDF(id, isPreview = false) {
+            const data = allHistory.find(item => item.id === id);
+            if (!data) return;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const status = (data.status || 'PENDING').toLowerCase();
+            
+            let headerText = "SURAT PERMOHONAN CUTI";
+            let stampMain = "DIPROSES";
+            let stampSub = "Permohonan dalam proses peninjauan oleh manajemen.";
+            let stampColor = [59, 130, 246];
+
+            if (status === "approved" || status === "disetujui") {
+                headerText = "SURAT KETERANGAN IZIN CUTI";
+                stampMain = "DISETUJUI";
+                stampSub = "Tugas untuk diserahkan ke Kurikulum sebelum Cuti";
+                stampColor = [34, 197, 94];
+            } else if (status === "rejected" || status === "ditolak") {
+                headerText = "SURAT KETERANGAN IZIN CUTI";
+                stampMain = "DITOLAK";
+                stampSub = "Silakan hubungi Hubinmas untuk keterangan lebih Lanjut";
+                stampColor = [239, 68, 68];
+            }
+
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(headerText, 105, 30, { align: "center" });
+            doc.setFontSize(10); doc.setFont("courier", "bold"); doc.text(`ID Permohonan: ${data.id}`, 105, 36, { align: "center" });
+
+            let yPos = 55;
+            doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.text("Melalui surat ini menerangkan bahwa:", 20, yPos);
+            
+            yPos += 12;
+            const labels = ["Nama", "Jabatan", "Jenis Cuti", "Periode Cuti", "Jumlah Hari Cuti", "Status"];
+            const values = [`: ${data.nama}`, `: ${data.jabatan}`, `: ${data.jeniscuti}`, `: ${data.displayPeriode}`, `: ${data.totalHari} Hari`, `: `];
+
+            labels.forEach((l, i) => {
+                doc.setFont("helvetica", "bold"); doc.text(l, 25, yPos);
+                doc.setFont("helvetica", "normal"); doc.text(values[i], 65, yPos);
+                yPos += 8;
+            });
+
+            yPos += 5;
+            doc.setDrawColor(stampColor[0], stampColor[1], stampColor[2]); doc.setLineWidth(1.5);
+            doc.roundedRect(20, yPos, 170, 30, 3, 3, 'D');
+            doc.setFillColor(stampColor[0], stampColor[1], stampColor[2], 0.1); doc.roundedRect(21, yPos + 1, 168, 28, 2, 2, 'F');
+            doc.setTextColor(stampColor[0], stampColor[1], stampColor[2]); doc.setFontSize(24); doc.setFont("helvetica", "bold");
+            doc.text(stampMain, 105, yPos + 15, { align: "center" });
+            doc.setFontSize(9); doc.setFont("helvetica", "italic"); doc.text(stampSub, 105, yPos + 22, { align: "center" });
+
+            yPos += 50; doc.setTextColor(30, 41, 59);
+            const boxX = 125; const boxY = yPos; const boxW = 65; const boxH = 35;
+            doc.setLineWidth(0.1); doc.setDrawColor(226, 232, 240); doc.setFillColor(248, 250, 252);
+            doc.roundedRect(boxX, boxY, boxW, boxH, 2, 2, 'FD');
+            doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text("VERIFIKASI DIGITAL", boxX + (boxW/2), boxY + 7, { align: "center" });
+            doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.text(`Diajukan: ${data.tglPengajuanHuman}`, boxX + 5, boxY + 15);
+            doc.text(`Sistem: SIPATU-SMART`, boxX + 5, boxY + 20);
+            
+            // Konversi UTF-8 yang aman sebelum btoa() untuk menghindari crash akibat nama khusus
+            const secureString = unescape(encodeURIComponent(data.id + data.nama));
+            const code = btoa(secureString).substring(0, 16).toUpperCase();
+            
+            doc.setFont("courier", "bold"); doc.setFontSize(8); doc.setTextColor(79, 70, 229); doc.text(code, boxX + (boxW/2), boxY + 28, { align: "center" });
+            doc.setFont("helvetica", "italic"); doc.setFontSize(6); doc.setTextColor(148, 163, 184); doc.text("*Sah tanpa tanda tangan basah", boxX + (boxW/2), boxY + 32, { align: "center" });
+
+            if (isPreview) {
+                const blobUrl = doc.output('bloburl');
+                window.open(blobUrl, '_blank');
+            } else {
+                const fileName = `${data.nama} - ${data.id}.pdf`.replace(/[/\\?%*:|"<>]/g, '-');
+                doc.save(fileName);
+            }
+        }
+
+        function generatePeriodicPDF() {
+            const startStr = document.getElementById('reportStart').value;
+            const endStr = document.getElementById('reportEnd').value;
+            if (!startStr || !endStr) { 
+                showNotification('Peringatan', 'Pilih rentang tanggal terlebih dahulu!', 'warning');
+                return; 
+            }
+
+            const startDate = new Date(startStr); startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(endStr); endDate.setHours(23, 59, 59, 999);
+
+            const filteredData = allHistory.filter(item => {
+                const itemDate = item.rawTglPengajuan;
+                return itemDate && itemDate >= startDate && itemDate <= endDate;
+            });
+
+            if (filteredData.length === 0) { 
+                showNotification('Info', 'Data transaksi tidak ditemukan pada rentang tanggal tersebut!', 'warning');
+                return; 
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+            doc.text("REKAPAN CUTI", 105, 20, { align: "center" });
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text(`Periode: ${startDate.toLocaleDateString('id-ID')} s/d ${endDate.toLocaleDateString('id-ID')}`, 105, 26, { align: "center" });
+
+            const sortedPegawai = [...pegawaiList].sort((a, b) => a.jabatan.localeCompare(b.jabatan));
+            const rekapRows = sortedPegawai.map((pegawai, index) => {
+                const cutis = filteredData.filter(h => 
+                    h.nama.trim().toLowerCase() === pegawai.nama.trim().toLowerCase() && 
+                    (h.status?.toLowerCase() === 'approved' || h.status?.toLowerCase() === 'disetujui')
+                );
+                let t = 0, m = 0;
+                cutis.forEach(c => {
+                    if (c.jeniscuti === "Cuti Tahunan") t += c.totalHari;
+                    else if (c.jeniscuti === "Cuti Mendadak") m += c.totalHari;
+                });
+                return [index + 1, pegawai.nama, pegawai.jabatan, t > 0 ? `${t} Hari` : "-", m > 0 ? `${m} Hari` : "-"];
+            });
+
+            doc.autoTable({
+                head: [['No', 'Nama Pegawai', 'Jabatan', 'Cuti Tahunan', 'Cuti Mendadak']],
+                body: rekapRows, startY: 35, theme: 'grid',
+                headStyles: { fillColor: [79, 70, 229], textColor: 255 },
+                styles: { fontSize: 8 }
+            });
+
+            doc.addPage();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("DETAIL TRANSAKSI", 105, 20, { align: "center" });
+            const detailRows = filteredData.map((item, index) => [
+                index + 1, item.id, item.nama, item.jeniscuti, item.displayPeriode, item.totalHari, (item.status || 'PENDING').toUpperCase()
+            ]);
+            doc.autoTable({
+                head: [['No', 'ID', 'Nama', 'Kategori', 'Tanggal', 'Hari', 'Status']],
+                body: detailRows, startY: 30, theme: 'striped',
+                headStyles: { fillColor: [51, 65, 85] },
+                styles: { fontSize: 7 }
+            });
+
+            doc.save(`Laporan_SIPATU_${startStr}.pdf`);
+            closeReportModal();
+        }
+
+        function handleAdminAuthToggle() {
+            if (isAdminActive) {
+                isAdminActive = false;
+                document.getElementById('btnAdminAccess').innerHTML = `<i class="fas fa-lock"></i> Portal Admin`;
+                document.getElementById('btnAdminAccess').className = "bg-indigo-600 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition-all flex items-center gap-2";
+                
+                document.getElementById('btnLaporan').classList.add('hidden');
+                document.getElementById('badgeAdminMode').classList.add('hidden');
+                document.getElementById('tableTitle').innerText = "Riwayat Pengajuan";
+
+                document.getElementById('leftPanel').innerHTML = `
+                    <div class="glass-card p-6 sticky top-8" id="formCard">
+                        <h2 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <i class="fas fa-edit text-indigo-500"></i> Buat Pengajuan
+                        </h2>
+                        <form id="cutiForm" onsubmit="handleSubmit(event)" class="space-y-4">
+                            <div class="relative" id="nameContainer">
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Nama Pegawai</label>
+                                <input type="text" id="namaInput" placeholder="Ketik nama..." autocomplete="off" onfocus="showDropdown()" oninput="filterDropdown()" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-medium focus:border-indigo-500 transition-all">
+                                <div id="nameDropdown" class="absolute w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto hidden"></div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Jabatan</label>
+                                <input type="text" id="jabatan" readonly placeholder="Otomatis..." class="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 text-sm cursor-not-allowed">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Jenis Cuti</label>
+                                    <select id="jenis" onchange="handleTypeChange()" class="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium">
+                                        <option value="Cuti Tahunan">Tahunan</option>
+                                        <option value="Cuti Mendadak">Mendadak</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Periode</label>
+                                    <input type="text" id="tglCuti" required placeholder="Pilih tgl..." class="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium">
+                                </div>
+                            </div>
+                            <div id="alasan-area" class="hidden">
+                                <label class="block text-[10px] font-bold text-amber-600 uppercase mb-1">Alasan & Mitigasi</label>
+                                <textarea id="alasan" rows="3" placeholder="Jelaskan alasan Anda..." class="w-full px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl text-sm"></textarea>
+                            </div>
+                            <button type="submit" id="submit-btn" class="w-full bg-slate-900 hover:bg-indigo-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-slate-200">
+                                Kirim Pengajuan
+                            </button>
+                        </form>
+                    </div>
+                `;
+                
+                datePicker = flatpickr("#tglCuti", { mode: "multiple", dateFormat: "d/m/Y", minDate: "today" });
+                render();
+                showNotification('Keluar', 'Berhasil keluar dari mode admin.', 'info');
+            } else {
+                document.getElementById('adminPinInput').value = "";
+                document.getElementById('admin-pin-error').classList.add('hidden');
+                document.getElementById('adminPinModal').style.display = 'flex';
+            }
+        }
+
+        function verifyAdminAccess() {
+            const inputPin = document.getElementById('adminPinInput').value;
+            const encodedInput = btoa(unescape(encodeURIComponent(inputPin)));
+            
+            if (encodedInput === REPORT_PIN_HASH) {
+                isAdminActive = true;
+                closeAdminPinModal();
+
+                document.getElementById('btnAdminAccess').innerHTML = `<i class="fas fa-sign-out-alt"></i> Keluar Admin`;
+                document.getElementById('btnAdminAccess').className = "bg-rose-600 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm hover:bg-rose-700 transition-all flex items-center gap-2";
+                
+                document.getElementById('btnLaporan').classList.remove('hidden');
+                document.getElementById('badgeAdminMode').classList.remove('hidden');
+                document.getElementById('tableTitle').innerText = "Kelola Permohonan Cuti";
+
+                renderAdminDashboardPanel();
+                render();
+                showNotification('Hak Akses', 'Selamat datang Admin, mode kelola diaktifkan!', 'success');
+            } else {
+                document.getElementById('admin-pin-error').classList.remove('hidden');
+            }
+        }
+
+        function renderAdminDashboardPanel() {
+            const leftPanel = document.getElementById('leftPanel');
+            leftPanel.innerHTML = `
+                <div class="glass-card p-6 sticky top-8 space-y-6" id="adminStatsCard">
+                    <div class="border-b border-slate-100 pb-4">
+                        <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fas fa-chart-pie text-indigo-500"></i> Ringkasan Sistem
+                        </h2>
+                        <p class="text-[9px] text-slate-400 uppercase font-bold tracking-wider mt-0.5">DATABASE STATUS</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-50">
+                            <div class="text-xs font-bold text-indigo-600 uppercase">Menunggu</div>
+                            <div id="statPending" class="text-2xl font-black text-indigo-700 mt-1">0</div>
+                        </div>
+                        <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-50">
+                            <div class="text-xs font-bold text-emerald-600 uppercase">Disetujui</div>
+                            <div id="statApproved" class="text-2xl font-black text-emerald-700 mt-1">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-rose-50/50 p-4 rounded-xl border border-rose-50">
+                            <div class="text-xs font-bold text-rose-600 uppercase">Ditolak</div>
+                            <div id="statRejected" class="text-2xl font-black text-rose-700 mt-1">0</div>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div class="text-xs font-bold text-slate-500 uppercase">Total Data</div>
+                            <div id="statTotal" class="text-2xl font-black text-slate-700 mt-1">0</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-indigo-50/30 p-4 rounded-xl border border-indigo-100">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-800 mb-2 flex items-center gap-1.5"><i class="fas fa-filter text-sm"></i> Filter Tahun Ajaran</h4>
+                        <div class="flex gap-2">
+                            <input type="text" id="newSheetName" value="${activeTahunAjaran}" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 font-bold">
+                            <button onclick="setActiveYear()" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold hover:bg-indigo-700 transition-all whitespace-nowrap">
+                                Aktifkan
+                            </button>
+                        </div>
+                        <p class="text-[9px] text-slate-500 mt-2">*Merubah ini akan memfilter seluruh data cuti sesuai tag Tahun Ajaran.</p>
+                    </div>
+                </div>
+            `;
+            updateAdminStats();
+        }
+
+        function updateAdminStats() {
+            const statPending = document.getElementById('statPending');
+            const statApproved = document.getElementById('statApproved');
+            const statRejected = document.getElementById('statRejected');
+            const statTotal = document.getElementById('statTotal');
+
+            if (!statPending || !statApproved || !statRejected || !statTotal) return;
+
+            let pending = 0, approved = 0, rejected = 0;
+
+            allHistory.forEach(item => {
+                const s = (item.status || 'pending').toLowerCase();
+                if (s === 'pending' || s === '') pending++;
+                else if (s === 'approved' || s === 'disetujui') approved++;
+                else if (s === 'rejected' || s === 'ditolak') rejected++;
+            });
+
+            statPending.innerText = pending;
+            statApproved.innerText = approved;
+            statRejected.innerText = rejected;
+            statTotal.innerText = allHistory.length;
+        }
+
+        function nextPage() { if(currentPage < Math.ceil(filtered.length / rowsPerPage)) { currentPage++; render(); } }
+        function prevPage() { if(currentPage > 1) { currentPage--; render(); } }
+        function handleSearch() { 
+            const t = document.getElementById('search').value.toLowerCase(); 
+            filtered = allHistory.filter(i => (i.nama || "").toLowerCase().includes(t) || (i.id || "").toLowerCase().includes(t)); 
+            currentPage = 1; render(); 
+        }
+
+        // Mengganti parameter flatpickr secara dinamis tanpa menghancurkan objek flatpickr DOM
+        function handleTypeChange() { 
+            const j = document.getElementById('jenis').value; 
+            const a = document.getElementById('alasan-area'); 
+            if (j === "Cuti Mendadak") { 
+                a.classList.remove('hidden'); 
+                datePicker.set('minDate', new Date().fp_incr(-14)); 
+            } else { 
+                a.classList.add('hidden'); 
+                datePicker.set('minDate', 'today'); 
+            } 
+        }
+
+        function showNotification(title, message, type) {
+            const existToast = document.getElementById('customToast');
+            if (existToast) existToast.remove();
+            const toast = document.createElement('div');
+            toast.id = 'customToast';
+            let bgClass = "bg-indigo-100 border-indigo-500 text-indigo-700";
+            if (type === 'success') bgClass = "bg-emerald-100 border-emerald-500 text-emerald-700";
+            if (type === 'error') bgClass = "bg-rose-100 border-rose-500 text-rose-700";
+            if (type === 'warning') bgClass = "bg-amber-100 border-amber-500 text-amber-700";
+            toast.className = `fixed bottom-5 right-5 ${bgClass} border-l-4 p-4 rounded-xl shadow-lg z-[250] transition-all duration-300 max-w-sm`;
+            toast.innerHTML = `<p class="font-bold">${title}</p><p class="text-xs mt-1">${message}</p>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        function setupPinListener() {
+            document.getElementById('reportPin').addEventListener('input', (e) => {
+                const fs = document.getElementById('filter-section');
+                const err = document.getElementById('pin-error');
+                const encodedInput = btoa(unescape(encodeURIComponent(e.target.value)));
+                if (encodedInput === REPORT_PIN_HASH) {
+                    fs.classList.remove('opacity-30', 'pointer-events-none');
+                    err.classList.add('hidden');
+                } else {
+                    fs.classList.add('opacity-30', 'pointer-events-none');
+                    if (e.target.value.length >= 8) err.classList.remove('hidden');
+                    else err.classList.add('hidden');
+                }
+            });
+        }
+
+        function openReportModal() { document.getElementById('reportModal').style.display = 'flex'; }
+        function closeReportModal() { document.getElementById('reportModal').style.display = 'none'; }
+        function closeAdminPinModal() { document.getElementById('adminPinModal').style.display = 'none'; }
+        function showDropdown() { document.getElementById('nameDropdown').classList.remove('hidden'); filterDropdown(); }
+        
+        function filterDropdown() { 
+            const v = document.getElementById('namaInput').value.toLowerCase(); 
+            const it = pegawaiList.filter(p => p.nama.toLowerCase().includes(v)); 
+            document.getElementById('nameDropdown').innerHTML = it.map(p => `<div onclick="selectP('${p.nama.replace(/'/g, "\\'")}', '${p.jabatan.replace(/'/g, "\\'")}')" class="px-4 py-3 hover:bg-indigo-50 cursor-pointer text-sm font-medium border-b border-slate-50 last:border-0"><div>${p.nama}</div><div class="text-[9px] text-slate-400 font-bold uppercase">${p.jabatan}</div></div>`).join(''); 
+        }
+
+        function selectP(n, j) { document.getElementById('namaInput').value = n; document.getElementById('jabatan').value = j; document.getElementById('nameDropdown').classList.add('hidden'); }
+        function showRedirectModal() { document.getElementById('displayId').innerText = currentSubmissionId; document.getElementById('redirectModal').style.display = 'flex'; }
+        
+        function copySubmissionId() {
+            const el = document.createElement('textarea'); 
+            el.value = currentSubmissionId; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+            document.getElementById('copySuccess').classList.remove('hidden'); document.getElementById('btnGoToForm').disabled = false;
+            document.getElementById('btnGoToForm').className = "w-full bg-indigo-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer";
+        }
+
+        function redirectToForm() { document.getElementById('redirectModal').style.display = 'none'; }
+        
+        window.onload = init;
+    </script>
+</body>
+</html>
