@@ -242,6 +242,7 @@
                                 <thead>
                                     <tr class="bg-white border-b border-slate-100">
                                         <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">ID & Pegawai</th>
+                                        <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Tanggal Pengajuan</th>
                                         <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Kategori Cuti</th>
                                         <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Periode & Alasan</th>
                                         <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider text-center">Konfirmasi</th>
@@ -507,6 +508,61 @@
         </div>
     </div>
 
+    <!-- Modal Edit Pengajuan Cuti (Baru) -->
+    <div id="editCutiModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[160] hidden-force items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-edit text-indigo-600"></i> Edit Pengajuan Cuti</h3>
+            <input type="hidden" id="editCutiId">
+            <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase">Nama Lengkap</label>
+                    <input type="text" id="editCutiNama" class="w-full px-4 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm mt-1 outline-none text-slate-500 cursor-not-allowed font-bold" readonly>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase">Jabatan</label>
+                    <input type="text" id="editCutiJabatan" class="w-full px-4 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm mt-1 outline-none text-slate-500 cursor-not-allowed" readonly>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase">Jenis Cuti</label>
+                        <select id="editCutiJenis" onchange="handleEditCutiTypeChange()" class="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg text-xs font-bold text-slate-700 mt-1">
+                            <option value="Cuti Tahunan">Tahunan</option>
+                            <option value="Cuti Mendadak">Mendadak</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase">Periode</label>
+                        <input type="text" id="editCutiTgl" required class="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg text-xs font-bold text-slate-700 mt-1">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase">Alasan Cuti</label>
+                    <textarea id="editCutiAlasan" rows="2" class="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg text-sm mt-1 focus:border-indigo-500 outline-none"></textarea>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6 pt-4 border-t border-slate-100">
+                <button onclick="closeEditCuti()" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl text-sm hover:bg-slate-200 transition-all">Batal</button>
+                <button onclick="saveEditCuti()" class="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-all shadow-md">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus Pengajuan Cuti (Baru) -->
+    <div id="deleteCutiConfirmModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden-force items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center">
+            <div class="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <h3 class="font-bold text-slate-800 text-base mb-1">Hapus Pengajuan Cuti?</h3>
+            <p class="text-xs text-slate-500 mb-6">Tindakan ini akan membatalkan serta menghapus pengajuan secara permanen dari sistem.</p>
+            <input type="hidden" id="deleteCutiId">
+            <div class="flex gap-3">
+                <button onclick="closeDeleteCutiModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-200 transition-all">Batal</button>
+                <button onclick="confirmDeleteCuti()" class="flex-1 py-2.5 bg-rose-600 text-white font-bold rounded-xl text-xs hover:bg-rose-700 transition-all">Ya, Batalkan</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal ID Pengajuan / Sukses Cuti Mendadak -->
     <div id="redirectModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden-force items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-8 text-center">
@@ -548,7 +604,7 @@
         
         let pegawaiList = JSON.parse(localStorage.getItem('SIPATU_PEGAWAI')) || [];
         let allHistory = [], filteredAdmin = [], filteredUser = [];
-        let datePicker, currentSubmissionId = "";
+        let datePicker, editCutiDatePicker, currentSubmissionId = "";
         let currentPageAdmin = 1, currentPageUser = 1;
         const rowsPerPage = 5;
         let isAdminActive = false;
@@ -750,6 +806,9 @@
                             </div>
                         </div>
                     </td>
+                    <td class="px-6 py-4 text-xs font-bold text-slate-600">
+                        ${i.tglPengajuanHuman}
+                    </td>
                     <td class="px-6 py-4">
                         <span class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${badgeClass}">${statusText}</span>
                         <p class="text-[10px] font-bold text-slate-500 mt-1">${i.jeniscuti}</p>
@@ -766,6 +825,12 @@
                             <button onclick="openReasonModal('${i.id}', 'Rejected')" title="Tolak Pengajuan" class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors border border-rose-100">
                                 <i class="fas fa-times text-xs"></i>
                             </button>
+                            <button onclick="openEditCuti('${i.id}')" title="Edit Rincian" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors border border-blue-100">
+                                <i class="fas fa-pen text-xs"></i>
+                            </button>
+                            <button onclick="openDeleteCutiModal('${i.id}')" title="Batalkan & Hapus" class="w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-colors border border-red-100">
+                                <i class="fas fa-trash-alt text-xs"></i>
+                            </button>
                             <div class="w-px h-6 bg-slate-200 mx-1"></div>
                             <button onclick="printOfficialPDF('${i.id}', true)" title="Preview Surat" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white transition-colors border border-slate-200">
                                 <i class="fas fa-print text-xs"></i>
@@ -779,6 +844,126 @@
             document.getElementById('adminPaginationInfo').innerText = `Menampilkan halaman ${currentPageAdmin} dari ${totalPages}`;
             document.getElementById('btnPrevAdmin').disabled = currentPageAdmin === 1;
             document.getElementById('btnNextAdmin').disabled = currentPageAdmin === totalPages;
+        }
+
+        function openEditCuti(id) {
+            const data = allHistory.find(item => item.id === id);
+            if (!data) return;
+
+            document.getElementById('editCutiId').value = data.id;
+            document.getElementById('editCutiNama').value = data.nama;
+            document.getElementById('editCutiJabatan').value = data.jabatan;
+            document.getElementById('editCutiJenis').value = data.jeniscuti;
+            document.getElementById('editCutiAlasan').value = data.alasancuti;
+
+            if (editCutiDatePicker) {
+                editCutiDatePicker.destroy();
+            }
+            
+            const minDateVal = data.jeniscuti === "Cuti Mendadak" ? new Date().fp_incr(-14) : "today";
+            editCutiDatePicker = flatpickr("#editCutiTgl", {
+                mode: "multiple",
+                dateFormat: "d/m/Y",
+                defaultDate: data.periodecuti.split(',').map(d => d.trim()),
+                minDate: minDateVal
+            });
+
+            document.getElementById('editCutiModal').classList.remove('hidden-force');
+            document.getElementById('editCutiModal').style.display = 'flex';
+        }
+
+        function handleEditCutiTypeChange() {
+            const j = document.getElementById('editCutiJenis').value;
+            if (editCutiDatePicker) {
+                if (j === "Cuti Mendadak") {
+                    editCutiDatePicker.set('minDate', new Date().fp_incr(-14));
+                } else {
+                    editCutiDatePicker.set('minDate', 'today');
+                }
+            }
+        }
+
+        function closeEditCuti() {
+            document.getElementById('editCutiModal').classList.add('hidden-force');
+            document.getElementById('editCutiModal').style.display = 'none';
+        }
+
+        async function saveEditCuti() {
+            const id = document.getElementById('editCutiId').value;
+            const jenis = document.getElementById('editCutiJenis').value;
+            const tgl = document.getElementById('editCutiTgl').value;
+            const alasan = document.getElementById('editCutiAlasan').value.trim();
+
+            if(!tgl) return showNotification('Peringatan', 'Tanggal cuti wajib dipilih!', 'warning');
+
+            const item = allHistory.find(x => x.id === id);
+            if (!item) return;
+
+            showNotification('Memproses', 'Menyimpan rincian cuti...', 'info');
+
+            try {
+                const updatedPayload = {
+                    jeniscuti: jenis,
+                    periodecuti: tgl,
+                    alasancuti: alasan || "-"
+                };
+
+                if (isCloudConnected) {
+                    await databases.updateDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, item.appwriteId, updatedPayload);
+                    showNotification('Sukses', 'Rincian pengajuan berhasil diperbarui!', 'success');
+                } else {
+                    const localData = getLocalStorageHistory();
+                    const index = localData.findIndex(doc => doc.id === id);
+                    if (index !== -1) {
+                        localData[index].jeniscuti = jenis;
+                        localData[index].periodecuti = tgl;
+                        localData[index].alasancuti = alasan || "-";
+                        saveLocalStorageHistory(localData);
+                    }
+                    showNotification('Sukses (Offline)', 'Rincian diperbarui secara lokal.', 'success');
+                }
+                closeEditCuti();
+                await fetchHistory();
+            } catch (e) {
+                console.error(e);
+                showNotification('Gagal', 'Terjadi kesalahan saat memperbarui rincian.', 'error');
+            }
+        }
+
+        function openDeleteCutiModal(id) {
+            document.getElementById('deleteCutiId').value = id;
+            document.getElementById('deleteCutiConfirmModal').classList.remove('hidden-force');
+            document.getElementById('deleteCutiConfirmModal').style.display = 'flex';
+        }
+
+        function closeDeleteCutiModal() {
+            document.getElementById('deleteCutiConfirmModal').classList.add('hidden-force');
+            document.getElementById('deleteCutiConfirmModal').style.display = 'none';
+        }
+
+        async function confirmDeleteCuti() {
+            const id = document.getElementById('deleteCutiId').value;
+            const item = allHistory.find(x => x.id === id);
+            if (!item) return;
+
+            showNotification('Memproses', 'Membatalkan pengajuan cuti...', 'info');
+            closeDeleteCutiModal();
+
+            try {
+                if (isCloudConnected) {
+                    await databases.deleteDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, item.appwriteId);
+                    showNotification('Sukses', 'Pengajuan berhasil dibatalkan & dihapus!', 'success');
+                } else {
+                    let localData = getLocalStorageHistory();
+                    localData = localData.filter(doc => doc.id !== id);
+                    saveLocalStorageHistory(localData);
+                    showNotification('Sukses (Offline)', 'Pengajuan dibatalkan secara lokal.', 'success');
+                }
+                await fetchHistory();
+            } catch (e) {
+                console.error(e);
+                showNotification('Gagal', 'Gagal membatalkan pengajuan cuti.', 'error');
+            }
         }
 
         function renderMonitorCuti() {
@@ -1117,7 +1302,7 @@
                 const day = parseInt(matchSlash[1], 10);
                 const month = parseInt(matchSlash[2], 10) - 1;
                 const year = parseInt(matchSlash[3], 10);
-                const hrs = matchSlash[4] ? parseInt(matchSlash[4], 10) : 8;
+                const hrs = matchSlash[4] ? parseInt(matchSlash[4], 10) : 12;
                 const mins = matchSlash[5] ? parseInt(matchSlash[5], 10) : 0;
                 const secs = matchSlash[6] ? parseInt(matchSlash[6], 10) : 0;
                 const d = new Date(year, month, day, hrs, mins, secs);
@@ -1131,7 +1316,7 @@
                 const year = parseInt(matchYmd[1], 10);
                 const month = parseInt(matchYmd[2], 10) - 1;
                 const day = parseInt(matchYmd[3], 10);
-                const hrs = matchYmd[4] ? parseInt(matchYmd[4], 10) : 8;
+                const hrs = matchYmd[4] ? parseInt(matchYmd[4], 10) : 12;
                 const mins = matchYmd[5] ? parseInt(matchYmd[5], 10) : 0;
                 const secs = matchYmd[6] ? parseInt(matchYmd[6], 10) : 0;
                 const d = new Date(year, month, day, hrs, mins, secs);
@@ -1321,7 +1506,7 @@
                     let statusTxt = newStatus === 'Approved' ? 'DISETUJUI ✅' : 'DITOLAK ❌';
                     let msg = `Halo *${leave.nama}*,\n\nPengajuan cuti Anda (ID: *${leave.id}*) telah *${statusTxt}*.\n`;
                     if (reason) msg += `\n*Catatan Admin:*\n_${reason}_\n`;
-                    msg += `\n(Admin akan melampirkan file PDF Surat Cuti pada pesan ini. Silakan ditunggu).`;
+                    msg += `\nUnduh surat resmi keputusan Anda di tautan berikut:\nhttps://sipatu.layanan.go.id/download/pdf/${leave.id}`;
 
                     setTimeout(() => window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank'), 500);
                 } else {
