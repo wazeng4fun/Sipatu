@@ -36,6 +36,9 @@
         .hidden-force { display: none !important; }
         .animate-fade-in { animation: fadeIn 0.4s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Camera overlay feed */
+        #cameraStream { width: 100%; height: auto; transform: scaleX(-1); border-radius: 1rem; }
     </style>
 </head>
 <body class="antialiased">
@@ -78,7 +81,7 @@
                 <form id="cutiForm" onsubmit="handleSubmit(event)" class="space-y-4">
                     <div class="relative" id="nameContainer">
                         <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Nama Pegawai</label>
-                        <input type="text" id="namaInput" placeholder="Ketik nama Anda..." autocomplete="off" onfocus="showDropdown()" oninput="filterDropdown()" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:border-indigo-500 transition-all">
+                        <input type="text" id="namaInput" placeholder="Ketik nama Anda..." autocomplete="off" onfocus="showDropdown()" oninput="filterDropdown()" onkeydown="handleNameInputKeyDown(event)" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:border-indigo-500 transition-all">
                         <div id="nameDropdown" class="absolute w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto hidden"></div>
                     </div>
                     <div>
@@ -98,9 +101,10 @@
                             <input type="text" id="tglCuti" required placeholder="Pilih tgl..." class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700">
                         </div>
                     </div>
-                    <div id="alasan-area" class="hidden">
-                        <label class="block text-[10px] font-bold text-amber-600 uppercase mb-1">Alasan Mendadak</label>
-                        <textarea id="alasan" rows="2" placeholder="Jelaskan secara singkat..." class="w-full px-4 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-xs"></textarea>
+                    <!-- Form Alasan Cuti (Selalu Tampil) -->
+                    <div id="alasan-area">
+                        <label id="lblAlasanForm" class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Alasan Cuti</label>
+                        <textarea id="alasan" rows="2" placeholder="Jelaskan secara singkat..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500 transition-all"></textarea>
                     </div>
                     <button type="submit" id="submit-btn" class="w-full bg-slate-900 hover:bg-indigo-600 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-slate-200 mt-2">
                         Kirim Pengajuan
@@ -138,7 +142,7 @@
                         <thead>
                             <tr class="bg-slate-50">
                                 <th class="px-4 py-3 text-[9px] font-extrabold text-slate-400 uppercase">Pengajuan</th>
-                                <th class="px-4 py-3 text-[9px] font-extrabold text-slate-400 uppercase text-center">Status & Cetak</th>
+                                <th class="px-4 py-3 text-[9px] font-extrabold text-slate-400 uppercase text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody id="userHistoryBody" class="divide-y divide-slate-100"></tbody>
@@ -245,7 +249,7 @@
                                         <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Tanggal Pengajuan</th>
                                         <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Kategori Cuti</th>
                                         <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Periode & Alasan</th>
-                                        <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider text-center">Konfirmasi</th>
+                                        <th class="px-6 py-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider text-center">Konfirmasi & Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody id="adminHistoryBody" class="divide-y divide-slate-50"></tbody>
@@ -356,7 +360,7 @@
                         </div>
                     </div>
 
-                    <!-- Pemeliharaan Database (Baru) -->
+                    <!-- Pemeliharaan Database -->
                     <div class="bg-white p-6 rounded-2xl border border-rose-100 shadow-sm bg-rose-50/10">
                         <h3 class="font-bold text-rose-800 mb-2 flex items-center gap-2">
                             <i class="fas fa-trash-alt text-rose-600"></i> Pemeliharaan Database & Optimalisasi Kuota Cloud
@@ -382,7 +386,7 @@
                 </div>
 
                 <!-- TAB 4: PENGATURAN SISTEM -->
-                <div id="tabContent-pengaturan" class="hidden-force space-y-6 animate-fade-in max-w-3xl">
+                <div id="tabContent-pengaturan" class="hidden-force space-y-6 max-w-3xl">
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                         <div class="p-6 border-b border-slate-100 bg-slate-50/50">
                             <h3 class="font-bold text-slate-800">Konfigurasi Identitas Sekolah</h3>
@@ -393,9 +397,15 @@
                                 <input type="text" id="setNamaSekolah" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Tahun Ajaran / Periode Aktif</label>
-                                <input type="text" id="setTahunAjaran" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all">
+                                <label class="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Tahun Ajaran / Periode Aktif (Maks 20 Karakter)</label>
+                                <input type="text" id="setTahunAjaran" maxlength="20" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all">
                                 <p class="text-[10px] text-slate-400 mt-2">*Perubahan tahun ajaran otomatis akan menyembunyikan data cuti tahun sebelumnya di tabel pengajuan (sebagai filter).</p>
+                            </div>
+                            <!-- WA Admin Config Field -->
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">No. WhatsApp Admin (Menerima Notifikasi Pengajuan)</label>
+                                <input type="text" id="setWaAdmin" placeholder="Contoh: 081234567890" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all">
+                                <p class="text-[10px] text-slate-400 mt-2">*Tujuan pengiriman pesan notifikasi otomatis saat karyawan melakukan pengajuan cuti.</p>
                             </div>
                             <div>
                                 <label class="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Logo Instansi (PNG/JPG)</label>
@@ -428,7 +438,72 @@
     <!-- MODALS UTILITY                             -->
     <!-- ========================================== -->
 
-    <!-- Modal Progres Import CSV (BARU) -->
+    <!-- Modal Upload Lampiran Foto Cuti (MODIFIKASI: LIVE CAMERA EXCLUSIVE) -->
+    <div id="uploadLampiranModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden-force items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden p-6 text-center animate-fade-in">
+            <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
+                <i class="fas fa-camera"></i>
+            </div>
+            <h3 class="text-base font-bold text-slate-800 mb-1">Ambil Foto Lampiran Bukti</h3>
+            <p class="text-xs text-slate-400 mb-4">Wajib ambil gambar fisik secara langsung melalui kamera. Sistem otomatis menyegel koordinat lokasi satelit.</p>
+            
+            <input type="hidden" id="uploadLampiranTargetId">
+            <!-- Fallback Hidden Native camera trigger (Strictly capture, no files) -->
+            <input type="file" id="lampiranCaptureInput" accept="image/*" capture="environment" class="hidden" onchange="processFallbackCapturedLampiran(event)">
+            
+            <!-- Area Kamera Live Viewport / Pratinjau Foto -->
+            <div class="mb-4 bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden relative flex flex-col items-center justify-center min-h-64 p-2">
+                <!-- Video stream element for true interactive browser webcam trigger -->
+                <video id="cameraStream" autoplay playsinline class="hidden"></video>
+                <!-- Image canvas preview -->
+                <img id="lampiranPreviewImg" class="max-h-60 rounded-xl object-contain shadow-inner hidden">
+                
+                <div id="lampiranPlaceholder" class="text-slate-300 flex flex-col items-center p-6">
+                    <i class="fas fa-camera-retro text-4xl mb-2"></i>
+                    <p class="text-xs font-bold text-slate-400">Siap Mengakses Kamera...</p>
+                </div>
+            </div>
+
+            <!-- Status GPS -->
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 text-left">
+                <div id="gpsStatus" class="text-xs text-slate-500 font-semibold flex items-center justify-center gap-1.5">
+                    <i class="fas fa-map-marker-alt text-rose-500 animate-pulse"></i> Menghubungi Sistem Koordinat GPS...
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <!-- Trigger Live Camera Stream inside web view first -->
+                <button id="btnStartCamera" onclick="startLiveCameraStream()" class="flex-1 py-3 bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">
+                    <i class="fas fa-video"></i> Aktifkan Kamera
+                </button>
+                <button id="btnCapturePhoto" onclick="captureLiveFrame()" disabled class="flex-1 py-3 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 hidden-force">
+                    <i class="fas fa-circle text-rose-500 text-[9px]"></i> Jepret Foto
+                </button>
+                <button id="btnSaveLampiran" onclick="saveLampiranAttachment()" disabled class="flex-1 py-3 bg-slate-900 text-white font-bold rounded-xl text-xs hover:bg-indigo-600 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5">
+                    <i class="fas fa-cloud-upload-alt"></i> Simpan Lampiran
+                </button>
+            </div>
+            <button onclick="closeUploadLampiranModal()" class="w-full mt-2.5 py-2.5 text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-wider">Batal</button>
+        </div>
+    </div>
+
+    <!-- Modal Lihat Lampiran Foto -->
+    <div id="viewLampiranModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[210] hidden-force items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden p-6 animate-fade-in text-center">
+            <h3 class="text-base font-bold text-slate-800 mb-1 flex items-center gap-2 justify-center"><i class="fas fa-image text-emerald-500"></i> Lampiran Terverifikasi</h3>
+            <p id="viewLampiranMeta" class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-4">ID Pengajuan</p>
+            
+            <div class="bg-slate-950 rounded-2xl overflow-hidden mb-5 border border-slate-200 shadow-inner flex items-center justify-center min-h-64">
+                <img id="viewLampiranImg" class="max-h-[400px] w-full object-contain" src="" alt="Pratinjau Lampiran">
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="closeViewLampiranModal()" class="w-full py-3 bg-slate-900 text-white font-bold rounded-xl text-xs hover:bg-slate-800 transition-all">Tutup Pratinjau</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Progres Import CSV / Hapus Massal -->
     <div id="importProgressModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden-force items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden p-6 text-center animate-fade-in">
             <div id="importSpinner" class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
@@ -496,7 +571,11 @@
             <div class="p-6 space-y-5 bg-slate-50">
                 <div>
                     <label class="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest text-center">Masukkan PIN Akses Admin</label>
-                    <input type="password" id="adminPinInput" placeholder="••••••" class="w-full px-4 py-4 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-center text-xl tracking-[0.5em] font-black text-slate-800 shadow-inner">
+                    <input type="password" id="adminPinInput" onkeydown="if(event.key === 'Enter') verifyAdminAccess()" placeholder="••••••" class="w-full px-4 py-4 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-center text-xl tracking-[0.5em] font-black text-slate-800 shadow-inner">
+                    <div class="mt-3 flex items-center justify-center gap-2">
+                        <input type="checkbox" id="toggleShowPin" onchange="togglePinVisibility()" class="custom-checkbox">
+                        <label for="toggleShowPin" class="text-xs font-semibold text-slate-500 cursor-pointer select-none">Lihat PIN</label>
+                    </div>
                     <p id="admin-pin-error" class="text-rose-500 text-[10px] font-bold mt-2 hidden text-center uppercase tracking-wider bg-rose-50 py-1 rounded">PIN Tidak Valid!</p>
                 </div>
                 <button onclick="verifyAdminAccess()" class="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/30">
@@ -532,7 +611,7 @@
         </div>
     </div>
 
-    <!-- Modal Edit Pengajuan Cuti (Baru) -->
+    <!-- Modal Edit Pengajuan Cuti -->
     <div id="editCutiModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[160] hidden-force items-center justify-center p-4">
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
             <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-edit text-indigo-600"></i> Edit Pengajuan Cuti</h3>
@@ -575,7 +654,86 @@
         </div>
     </div>
 
-    <!-- Modal Konfirmasi Hapus Pengajuan Cuti (Baru) -->
+    <!-- Modal Aksi Terpadu Admin (Pusat Kendali Pengajuan) -->
+    <div id="adminActionModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden-force items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-fade-in" id="actionModalContent">
+            <div class="bg-slate-900 px-6 py-4 flex justify-between items-center text-white border-b border-slate-800">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-cog text-indigo-400 text-lg"></i>
+                    <h3 class="font-extrabold text-sm tracking-wide">Pusat Kelola Pengajuan</h3>
+                </div>
+                <button onclick="closeAdminActionModal()" class="text-slate-400 hover:text-white transition-colors"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-4 max-h-[460px] overflow-y-auto bg-slate-50">
+                <!-- Info Ringkas -->
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span id="actModalId" class="text-[9px] font-mono font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">ID</span>
+                            <h4 id="actModalNama" class="font-black text-slate-800 text-base mt-1.5 leading-tight">Nama Pegawai</h4>
+                            <p id="actModalJabatan" class="text-[11px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Jabatan</p>
+                        </div>
+                        <span id="actModalStatusBadge" class="px-2.5 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider border shrink-0">STATUS</span>
+                    </div>
+                    <hr class="border-slate-100">
+                    <div class="grid grid-cols-2 gap-x-2 gap-y-3 text-xs">
+                        <div>
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Kategori Cuti</p>
+                            <p id="actModalJenis" class="font-extrabold text-slate-700 mt-0.5">Jenis Cuti</p>
+                        </div>
+                        <div>
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Durasi</p>
+                            <p id="actModalTotalHari" class="font-extrabold text-slate-700 mt-0.5">0 Hari</p>
+                        </div>
+                        <div class="col-span-2">
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Periode Tanggal</p>
+                            <p id="actModalPeriode" class="font-extrabold text-indigo-600 mt-0.5">Periode</p>
+                        </div>
+                        <div class="col-span-2">
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Alasan Pengajuan</p>
+                            <p id="actModalAlasan" class="text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-150 text-xs mt-1 leading-relaxed max-h-24 overflow-y-auto font-medium">Alasan</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bagian Lampiran Bukti (Cuti Mendadak Only) -->
+                <div id="actModalLampiranContainer" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2 hidden-force">
+                    <h5 class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <i class="fas fa-paperclip text-indigo-500"></i> Lampiran Bukti GPS
+                    </h5>
+                    <div id="actModalLampiranStatus" class="flex items-center justify-between p-3 rounded-xl">
+                        <!-- Dynamic Status Content -->
+                    </div>
+                </div>
+
+                <!-- Formulir Catatan Admin (Opsional) -->
+                <div class="space-y-1.5">
+                    <label class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Catatan Admin / Keputusan Resmi</label>
+                    <textarea id="actModalReason" rows="2" placeholder="Contoh: Silakan direvisi atau Cuti disetujui, selamat beristirahat..." class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500 transition-all shadow-sm font-semibold text-slate-700"></textarea>
+                </div>
+            </div>
+            <!-- Menu Aksi Grid Terpusat -->
+            <div class="p-4 bg-white border-t border-slate-100 grid grid-cols-2 gap-2">
+                <button onclick="handleActModalDecision('Approved')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/10">
+                    <i class="fas fa-check-circle"></i> Setujui & WA
+                </button>
+                <button onclick="handleActModalDecision('Rejected')" class="bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/10">
+                    <i class="fas fa-times-circle"></i> Tolak & WA
+                </button>
+                <button onclick="triggerActModalEdit()" class="bg-slate-100 text-slate-700 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 font-extrabold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">
+                    <i class="fas fa-pen"></i> Edit Rincian
+                </button>
+                <button onclick="triggerActModalPrint()" class="bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-800 hover:text-white hover:border-slate-800 font-extrabold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">
+                    <i class="fas fa-print"></i> Cetak PDF
+                </button>
+                <button onclick="triggerActModalDelete()" class="col-span-2 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-600 hover:text-white font-extrabold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 mt-1">
+                    <i class="fas fa-trash-alt"></i> Batalkan & Hapus Transaksi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus Pengajuan Cuti (PENGGANTI WINDOW.CONFIRM) -->
     <div id="deleteCutiConfirmModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden-force items-center justify-center p-4">
         <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center">
             <div class="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
@@ -591,7 +749,7 @@
         </div>
     </div>
 
-    <!-- Modal Konfirmasi Hapus Semua Data Cuti (Baru) -->
+    <!-- Modal Konfirmasi Hapus Semua Data Cuti -->
     <div id="deleteAllCutiModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden-force items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden p-6 text-center animate-fade-in">
             <div class="w-16 h-16 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
@@ -608,21 +766,6 @@
                 <button onclick="closeDeleteAllCutiModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-200 transition-all">Batalkan</button>
                 <button onclick="processDeleteAllCuti()" class="flex-1 py-2.5 bg-rose-600 text-white font-bold rounded-xl text-xs hover:bg-rose-700 transition-all shadow-md">Ya, Kosongkan Semua</button>
             </div>
-        </div>
-    </div>
-
-    <!-- Modal ID Pengajuan / Sukses Cuti Mendadak -->
-    <div id="redirectModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden-force items-center justify-center p-4">
-        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-8 text-center">
-            <div class="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner"><i class="fas fa-check text-4xl"></i></div>
-            <h3 class="text-xl font-black text-slate-800 mb-2">Pengajuan Berhasil!</h3>
-            <p class="text-xs text-slate-500 mb-6">Simpan ID ini untuk melacak status cuti Anda.</p>
-            <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 mb-6">
-                <span id="displayId" class="text-base font-mono font-bold text-indigo-600 tracking-widest w-full text-center"></span>
-                <button onclick="copySubmissionId()" class="bg-white border border-slate-200 text-slate-600 p-2.5 rounded-lg hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm"><i class="fas fa-copy"></i></button>
-            </div>
-            <div id="copySuccess" class="hidden text-emerald-600 text-xs font-bold mb-4 bg-emerald-50 py-1 rounded uppercase tracking-wider"><i class="fas fa-check-circle"></i> Tersalin!</div>
-            <button id="btnGoToForm" onclick="redirectToForm()" class="w-full bg-slate-900 hover:bg-indigo-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg">Selesai Beraktivitas</button>
         </div>
     </div>
 
@@ -647,7 +790,8 @@
         let appSettings = JSON.parse(localStorage.getItem('SIPATU_SETTINGS')) || {
             namaSekolah: 'SMK Link and Match',
             tahunAjaran: '2023-2024',
-            logoBase64: ''
+            logoBase64: '',
+            waAdmin: '081234567890'
         };
         
         let pegawaiList = JSON.parse(localStorage.getItem('SIPATU_PEGAWAI')) || [];
@@ -658,10 +802,17 @@
         let isAdminActive = false;
         let isCloudConnected = false;
         
-        // State pembatalan proses import CSV
+        // Pembatalan proses impor
         let shouldCancelImport = false;
 
-        // Global Event Listener untuk menutup Dropdown Pencarian Nama Guru secara aman
+        // Koordinat GPS & Kamera
+        let currentLat = 0;
+        let currentLng = 0;
+        let processedLampiranBase64 = "";
+        let localMediaStream = null;
+        let currentActiveActionId = ""; // Track pengajuan aktif di modal kelola admin
+
+        // Penutupan dropdown nama secara aman
         document.addEventListener('click', function(e) {
             const container = document.getElementById('nameContainer');
             const dropdown = document.getElementById('nameDropdown');
@@ -671,7 +822,7 @@
         });
 
         // ==========================================
-        // PEMBERSIHAN DATABASE SECARA MASSAL (BARU)
+        // PEMBERSIHAN DATABASE SECARA MASSAL
         // ==========================================
         function openDeleteAllCutiModal() {
             document.getElementById('deleteAllConfirmationInput').value = "";
@@ -693,7 +844,6 @@
 
             closeDeleteAllCutiModal();
 
-            // Gunakan modal progress impor yang sudah ada untuk visualisasi penghapusan
             const progressModal = document.getElementById('importProgressModal');
             progressModal.classList.remove('hidden-force');
             progressModal.style.display = 'flex';
@@ -705,14 +855,13 @@
             document.getElementById('importProgressPercent').innerText = "0%";
             document.getElementById('importLogArea').classList.remove('hidden');
             document.getElementById('importLogLines').innerHTML = "";
-            document.getElementById('btnCancelImport').classList.add('hidden'); // Destruktif, tidak boleh dibatalkan di tengah jalan
+            document.getElementById('btnCancelImport').classList.add('hidden'); 
             document.getElementById('btnCloseProgress').classList.add('hidden');
             document.getElementById('importSpinner').innerHTML = `<i class="fas fa-trash-alt animate-bounce text-rose-500"></i>`;
             document.getElementById('importSuccessCount').innerText = `Dihapus: 0`;
 
             const totalItems = allHistory.length;
             if (totalItems === 0) {
-                // Bersihkan penyimpanan lokal juga jika data di cloud memang kosong
                 saveLocalStorageHistory([]);
                 document.getElementById('importProgressBar').style.width = "100%";
                 document.getElementById('importProgressCount').innerText = "0 / 0 Data";
@@ -730,19 +879,14 @@
 
             for (let idx = 0; idx < totalItems; idx++) {
                 const item = allHistory[idx];
-                const rowNum = idx + 1;
-
-                // Hitung visualisasi persentase progress penghapusan
                 const currentPercent = Math.round(((idx + 1) / totalItems) * 100);
                 document.getElementById('importProgressBar').style.width = `${currentPercent}%`;
                 document.getElementById('importProgressCount').innerText = `${idx + 1} / ${totalItems} Data`;
                 document.getElementById('importProgressPercent').innerText = `${currentPercent}%`;
 
                 try {
-                    // Cek jika cloud terhubung, lakukan pembersihan cloud satu per satu
                     if (isCloudConnected && item.appwriteId && !item.appwriteId.startsWith('local_')) {
                         await databases.deleteDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, item.appwriteId);
-                        // Throttling adaptif demi menjaga stabilitas kuota Appwrite Cloud gratis
                         await new Promise(resolve => setTimeout(resolve, 300));
                     }
                     
@@ -752,30 +896,28 @@
                 } catch (err) {
                     failureCount++;
                     appendImportLog(`✗ [${item.id}] Gagal dibersihkan. Alasan: ${err.message || "Error server"}`, "text-rose-600");
-                    console.error("Kesalahan penghapusan dokumen:", item.appwriteId, err);
                 }
             }
 
-            // Selalu bersihkan penyimpanan lokal (cache)
             saveLocalStorageHistory([]);
-
-            // Selesaikan visualisasi progres
             document.getElementById('btnCloseProgress').classList.remove('hidden');
             document.getElementById('importProgressTitle').innerText = "Database Berhasil Dikosongkan";
             document.getElementById('importProgressSub').innerText = `Berhasil menghapus ${deletedCount} data cuti. Gagal: ${failureCount} data.`;
             document.getElementById('importSpinner').innerHTML = `<i class="fas fa-check-circle text-emerald-500"></i>`;
 
-            await fetchHistory(); // Segarkan tampilan dashboard dan rekap
+            await fetchHistory(); 
         }
 
         // ==========================================
-        // CORE INITIALIZATION
+        // INITIALIZATION & SETTINGS
         // ==========================================
         async function init() {
             applySettingsToUI();
             datePicker = flatpickr("#tglCuti", { mode: "multiple", dateFormat: "d/m/Y", minDate: "today" });
             document.getElementById('todayDateLabel').innerText = humanizeDate(new Date());
             
+            handleTypeChange();
+
             if(pegawaiList.length === 0) {
                 pegawaiList = [
                     { id: 'PGW-10001', nama: 'Budi Santoso', jabatan: 'Guru Matematika', telepon: '08123456789' }
@@ -794,6 +936,7 @@
             
             document.getElementById('setNamaSekolah').value = appSettings.namaSekolah;
             document.getElementById('setTahunAjaran').value = appSettings.tahunAjaran;
+            document.getElementById('setWaAdmin').value = appSettings.waAdmin || '';
             
             if(appSettings.logoBase64) {
                 document.getElementById('userLogo').src = appSettings.logoBase64;
@@ -862,6 +1005,7 @@
             allHistory = rawData.map(i => {
                 const rawPeriode = String(i.periodecuti || "-");
                 const tglAju = i.tgl_pengajuan || i.$createdAt || new Date().toISOString();
+                const localLampiran = localStorage.getItem('SIPATU_LAMPIRAN_' + i.id) || "";
                 return { 
                     ...i, 
                     appwriteId: i.$id || i.id, 
@@ -869,7 +1013,8 @@
                     totalHari: rawPeriode.split(',').filter(d => d.trim()).length, 
                     tglPengajuanHuman: humanizeDate(tglAju),
                     rawTglPengajuan: parseCustomDate(tglAju),
-                    rawPeriodeList: rawPeriode.split(',').map(d => d.trim())
+                    rawPeriodeList: rawPeriode.split(',').map(d => d.trim()),
+                    lampiran: i.lampiran || localLampiran || ""
                 };
             });
             
@@ -889,10 +1034,61 @@
             const pageItems = filteredUser.slice(startIndex, startIndex + rowsPerPage);
 
             tbody.innerHTML = pageItems.map(i => {
-                const status = (i.status || 'pending').toLowerCase();
+                const isMendadak = i.jeniscuti === "Cuti Mendadak";
+                const hasLampiran = i.lampiran && i.lampiran.trim() !== "";
+                
                 let dotClass = "dot-pending";
-                if(status === "approved" || status === "disetujui") dotClass = "dot-approved";
-                if(status === "rejected" || status === "ditolak") dotClass = "dot-rejected";
+                let statusLabel = "Menunggu";
+                
+                // Logika Aturan Baru: Cuti mendadak tidak akan berubah statusnya di dashboard pegawai 
+                // hingga foto lampiran diunggah oleh pemohon, sekalipun admin sudah menyetujuinya.
+                if (isMendadak && !hasLampiran) {
+                    dotClass = "dot-pending";
+                    statusLabel = "Menunggu";
+                } else {
+                    const status = (i.status || 'pending').toLowerCase();
+                    if(status === "approved" || status === "disetujui") {
+                        dotClass = "dot-approved";
+                        statusLabel = "Disetujui";
+                    } else if(status === "rejected" || status === "ditolak") {
+                        dotClass = "dot-rejected";
+                        statusLabel = "Ditolak";
+                    }
+                }
+
+                let statusAndUploadColumn = '';
+                if (isMendadak) {
+                    if (hasLampiran) {
+                        statusAndUploadColumn = `
+                            <div class="flex flex-col items-center gap-1.5">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                    ${statusLabel}
+                                </span>
+                                <button onclick="openViewLampiranModal('${i.id}')" class="text-[8px] font-black text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-xl border border-emerald-200 uppercase tracking-tighter transition-all flex items-center justify-center gap-1">
+                                    <i class="fas fa-image text-[9px]"></i> Lihat Bukti Foto
+                                </button>
+                            </div>`;
+                    } else {
+                        statusAndUploadColumn = `
+                            <div class="flex flex-col items-center gap-1">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
+                                    ${statusLabel}
+                                </span>
+                                <button onclick="openUploadLampiranModal('${i.id}')" class="text-[9px] font-bold text-rose-600 bg-amber-50 hover:bg-amber-100 px-2.5 py-1.5 rounded-xl border border-amber-200 uppercase tracking-tighter transition-all animate-pulse block text-center leading-tight" title="Klik untuk meluncurkan kamera penangkap lampiran">
+                                    <i class="fas fa-camera text-[10px] mr-1"></i> Kirimkan Lampiran
+                                </button>
+                            </div>`;
+                    }
+                } else {
+                    statusAndUploadColumn = `
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold ${
+                            statusLabel === "Disetujui" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
+                            statusLabel === "Ditolak" ? "bg-rose-50 text-rose-600 border border-rose-100" :
+                            "bg-blue-50 text-blue-600 border border-blue-100"
+                        }">
+                            ${statusLabel}
+                        </span>`;
+                }
 
                 return `<tr class="hover:bg-slate-50 transition-colors">
                     <td class="px-4 py-3 border-r border-slate-50">
@@ -905,9 +1101,7 @@
                         </div>
                     </td>
                     <td class="px-4 py-3 text-center align-middle">
-                        <button onclick="printOfficialPDF('${i.id}', false)" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
-                            <i class="fas fa-print text-[10px]"></i>
-                        </button>
+                        ${statusAndUploadColumn}
                     </td>
                 </tr>`;
             }).join('');
@@ -936,8 +1130,17 @@
                 const phoneNo = p ? p.telepon : "";
                 const hasPhone = phoneNo && phoneNo !== "-" && phoneNo.length > 5;
                 const waIcon = hasPhone 
-                    ? `<button onclick="sendDirectWA('${i.id}')" class="text-emerald-500 hover:text-emerald-600 transition-colors ml-2" title="Chat WA Personal"><i class="fab fa-whatsapp"></i></button>` 
-                    : `<span class="text-slate-300 ml-2" title="Nomor WA tidak tersedia"><i class="fab fa-whatsapp"></i></span>`;
+                    ? `<span class="text-emerald-500 ml-1.5" title="Nomor WA Pegawai Aktif"><i class="fab fa-whatsapp"></i></span>` 
+                    : `<span class="text-slate-300 ml-1.5" title="No WA Belum Terdaftar"><i class="fab fa-whatsapp"></i></span>`;
+
+                const isMendadak = i.jeniscuti === "Cuti Mendadak";
+                const hasLampiran = i.lampiran && i.lampiran.trim() !== "";
+                let lampStatusText = '';
+                if (isMendadak) {
+                    lampStatusText = hasLampiran 
+                        ? `<span class="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded ml-1" title="Lampiran GPS Terverifikasi"><i class="fas fa-check-circle text-[8px]"></i> Lampiran Ada</span>`
+                        : `<span class="text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded ml-1 animate-pulse" title="Menunggu Unggahan Foto Bukti"><i class="fas fa-times-circle text-[8px]"></i> Belum Ada Foto</span>`;
+                }
 
                 return `<tr class="hover:bg-slate-50 transition-colors group">
                     <td class="px-6 py-4">
@@ -947,6 +1150,7 @@
                                 <div class="flex items-center">
                                     <span class="font-bold text-slate-800 text-sm">${i.nama}</span>
                                     ${waIcon}
+                                    ${lampStatusText}
                                 </div>
                                 <span class="text-[9px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded w-max mt-0.5">${i.id}</span>
                             </div>
@@ -963,25 +1167,11 @@
                         <p class="text-xs font-bold text-slate-700">${i.displayPeriode} <span class="text-[9px] text-slate-400 font-normal">(${i.totalHari} Hari)</span></p>
                         <p class="text-[10px] text-slate-500 truncate max-w-[200px]" title="${i.alasancuti}">${i.alasancuti !== '-' ? i.alasancuti : 'Tanpa catatan'}</p>
                     </td>
+                    <!-- Desentralisasi Aksi ke Satu Tombol Kelola Terpadu -->
                     <td class="px-6 py-4 text-center">
-                        <div class="flex items-center justify-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                            <button onclick="openReasonModal('${i.id}', 'Approved')" title="Setujui Pengajuan" class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-colors border border-emerald-100">
-                                <i class="fas fa-check text-xs"></i>
-                            </button>
-                            <button onclick="openReasonModal('${i.id}', 'Rejected')" title="Tolak Pengajuan" class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors border border-rose-100">
-                                <i class="fas fa-times text-xs"></i>
-                            </button>
-                            <button onclick="openEditCuti('${i.id}')" title="Edit Rincian" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors border border-blue-100">
-                                <i class="fas fa-pen text-xs"></i>
-                            </button>
-                            <button onclick="openDeleteCutiModal('${i.id}')" title="Batalkan & Hapus" class="w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-colors border border-red-100">
-                                <i class="fas fa-trash-alt text-xs"></i>
-                            </button>
-                            <div class="w-px h-6 bg-slate-200 mx-1"></div>
-                            <button onclick="printOfficialPDF('${i.id}', true)" title="Preview Surat" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white transition-colors border border-slate-200">
-                                <i class="fas fa-print text-xs"></i>
-                            </button>
-                        </div>
+                        <button onclick="openAdminActionModal('${i.id}')" class="bg-indigo-50 text-indigo-600 border border-indigo-150 hover:bg-indigo-600 hover:text-white px-3.5 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1.5 mx-auto uppercase tracking-wider">
+                            <i class="fas fa-cog"></i> Kelola
+                        </button>
                     </td>
                 </tr>`;
             }).join('');
@@ -992,6 +1182,352 @@
             document.getElementById('btnNextAdmin').disabled = currentPageAdmin === totalPages;
         }
 
+        // ==========================================
+        // INITIALIZATION & SETTINGS
+        // ==========================================
+        async function init() {
+            applySettingsToUI();
+            
+            // Menginisialisasi Flatpickr dengan event onChange untuk mencegah manipulasi tanggal di bawah 14 hari bagi cuti tahunan
+            datePicker = flatpickr("#tglCuti", { 
+                mode: "multiple", 
+                dateFormat: "d/m/Y",
+                onChange: function(selectedDates, dateStr, instance) {
+                    const j = document.getElementById('jenis').value;
+                    if (j === "Cuti Tahunan") {
+                        const minAllowed = new Date();
+                        minAllowed.setHours(0,0,0,0);
+                        minAllowed.setDate(minAllowed.getDate() + 14);
+                        
+                        const hasInvalid = selectedDates.some(date => date < minAllowed);
+                        if (hasInvalid) {
+                            showNotification('Batas Pengajuan', 'Cuti Tahunan Wajib di Ajukan selambat-lambatnya 14 hari sebelum cuti', 'warning');
+                            instance.clear();
+                        }
+                    }
+                }
+            });
+            document.getElementById('todayDateLabel').innerText = humanizeDate(new Date());
+            
+            handleTypeChange();
+
+            if(pegawaiList.length === 0) {
+                pegawaiList = [
+                    { id: 'PGW-10001', nama: 'Budi Santoso', jabatan: 'Guru Matematika', telepon: '08123456789' }
+                ];
+                localStorage.setItem('SIPATU_PEGAWAI', JSON.stringify(pegawaiList));
+            }
+
+            await fetchHistory(); 
+        }
+
+        function applySettingsToUI() {
+            document.getElementById('lblNamaSekolahUser').innerText = appSettings.namaSekolah;
+            document.getElementById('lblNamaSekolahAdmin').innerText = appSettings.namaSekolah;
+            document.getElementById('lblTahunAjaranUser').innerText = `TA: ${appSettings.tahunAjaran}`;
+            document.getElementById('lblTahunAjaranAdmin').innerText = appSettings.tahunAjaran;
+            
+            document.getElementById('setNamaSekolah').value = appSettings.namaSekolah;
+            document.getElementById('setTahunAjaran').value = appSettings.tahunAjaran;
+            document.getElementById('setWaAdmin').value = appSettings.waAdmin || '';
+            
+            if(appSettings.logoBase64) {
+                document.getElementById('userLogo').src = appSettings.logoBase64;
+                document.getElementById('userLogo').classList.remove('hidden');
+                document.getElementById('userIconFallback').classList.add('hidden-force');
+                
+                document.getElementById('adminLogo').src = appSettings.logoBase64;
+                document.getElementById('adminLogo').classList.remove('hidden');
+                document.getElementById('adminIconFallback').classList.add('hidden-force');
+                
+                document.getElementById('previewLogo').src = appSettings.logoBase64;
+                document.getElementById('previewLogo').classList.remove('hidden');
+                document.getElementById('previewFallback').classList.add('hidden-force');
+            }
+        }
+
+        // MEMULAI KAMERA LIVE WEB-VIEW (BUKAN DUPLIKASI APPLY SETTINGS)
+        async function startLiveCameraStream() {
+            const video = document.getElementById('cameraStream');
+            const placeholder = document.getElementById('lampiranPlaceholder');
+            const startBtn = document.getElementById('btnStartCamera');
+            const captureBtn = document.getElementById('btnCapturePhoto');
+            const previewImg = document.getElementById('lampiranPreviewImg');
+
+            previewImg.classList.add('hidden');
+            placeholder.classList.add('hidden');
+            video.classList.remove('hidden');
+
+            try {
+                stopCameraTracks();
+
+                const constraints = {
+                    video: {
+                        facingMode: "environment", 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                };
+
+                localMediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = localMediaStream;
+                
+                captureBtn.classList.remove('hidden-force');
+                captureBtn.disabled = false;
+                startBtn.classList.add('hidden-force');
+                
+                showNotification('Kamera Aktif', 'Silakan arahkan kamera ke berkas fisik bukti mendadak.', 'info');
+            } catch (err) {
+                console.error("Gagal memulai modul kamera WebRTC:", err);
+                showNotification('Mengalihkan', 'Kamera default perangkat dipicu...', 'warning');
+                document.getElementById('lampiranCaptureInput').click();
+            }
+        }
+
+        function captureLiveFrame() {
+            const video = document.getElementById('cameraStream');
+            const previewImg = document.getElementById('lampiranPreviewImg');
+            const captureBtn = document.getElementById('btnCapturePhoto');
+            const startBtn = document.getElementById('btnStartCamera');
+
+            if (!localMediaStream) return;
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+
+            ctx.save();
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            ctx.restore();
+
+            stopCameraTracks();
+
+            applyWatermarkToCanvas(canvas, ctx);
+
+            processedLampiranBase64 = canvas.toDataURL('image/jpeg', 0.5);
+
+            video.classList.add('hidden');
+            previewImg.src = processedLampiranBase64;
+            previewImg.classList.remove('hidden');
+            
+            captureBtn.classList.add('hidden-force');
+            startBtn.classList.remove('hidden-force');
+            startBtn.innerText = "Ulangi Foto";
+            
+            document.getElementById('btnSaveLampiran').disabled = false;
+            showNotification('Berhasil', 'Foto berhasil distempel koordinat GPS!', 'success');
+        }
+
+        function stopCameraTracks() {
+            if (localMediaStream) {
+                localMediaStream.getTracks().forEach(track => track.stop());
+                localMediaStream = null;
+            }
+            const video = document.getElementById('cameraStream');
+            if (video) video.srcObject = null;
+        }
+
+        // Fallback untuk perangkat non-WebRTC (Memaksa Kamera Native)
+        function processFallbackCapturedLampiran(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showNotification('Memproses', 'Mengompresi bukti dari kamera...', 'info');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    const maxResolutionWidth = 600;
+                    const scaleFactor = Math.min(1, maxResolutionWidth / img.width);
+                    canvas.width = img.width * scaleFactor;
+                    canvas.height = img.height * scaleFactor;
+
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    // Tambahkan Stempel
+                    applyWatermarkToCanvas(canvas, ctx);
+
+                    processedLampiranBase64 = canvas.toDataURL('image/jpeg', 0.5);
+
+                    const previewImg = document.getElementById('lampiranPreviewImg');
+                    previewImg.src = processedLampiranBase64;
+                    previewImg.classList.remove('hidden');
+                    document.getElementById('lampiranPlaceholder').classList.add('hidden');
+                    
+                    document.getElementById('btnSaveLampiran').disabled = false;
+                    showNotification('Siap', 'Foto eksternal berhasil distempel!', 'success');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function applyWatermarkToCanvas(canvas, ctx) {
+            const bannerHeight = 65;
+            ctx.fillStyle = "rgba(15, 23, 42, 0.75)"; 
+            ctx.fillRect(0, canvas.height - bannerHeight, canvas.width, bannerHeight);
+
+            ctx.fillStyle = "#6366f1"; 
+            ctx.fillRect(0, canvas.height - bannerHeight, 4, bannerHeight);
+
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 11px 'Plus Jakarta Sans', sans-serif";
+            ctx.textAlign = "left";
+
+            // Format Tanggal Indonesia yang Akurat
+            const skrg = new Date();
+            const formatTgl = skrg.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            const formatWaktu = skrg.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            ctx.fillText(`🕒 ${formatTgl} - ${formatWaktu} WIB`, 15, canvas.height - 38);
+
+            ctx.font = "10px 'Plus Jakarta Sans', sans-serif";
+            let gpsText = `📍 LOKASI: Lat ${currentLat.toFixed(6)}, Lng ${currentLng.toFixed(6)}`;
+            if (currentLat === 0 && currentLng === 0) {
+                gpsText = `📍 LOKASI: Koordinat GPS Tidak Tersedia (Akses Terbatas)`;
+            }
+            ctx.fillText(gpsText, 15, canvas.height - 20);
+
+            ctx.font = "bold italic 9px sans-serif";
+            ctx.fillStyle = "#818cf8";
+            ctx.textAlign = "right";
+            ctx.fillText("VERIFIKASI SIPATU", canvas.width - 15, canvas.height - 20);
+        }
+
+        function openUploadLampiranModal(id) {
+            document.getElementById('uploadLampiranTargetId').value = id;
+            document.getElementById('lampiranCaptureInput').value = "";
+            document.getElementById('lampiranPreviewImg').src = "";
+            document.getElementById('lampiranPreviewImg').classList.add('hidden');
+            document.getElementById('cameraStream').classList.add('hidden');
+            document.getElementById('lampiranPlaceholder').classList.remove('hidden');
+            document.getElementById('btnSaveLampiran').disabled = true;
+            
+            const startBtn = document.getElementById('btnStartCamera');
+            const captureBtn = document.getElementById('btnCapturePhoto');
+            startBtn.classList.remove('hidden-force');
+            startBtn.innerText = "Aktifkan Kamera";
+            captureBtn.classList.add('hidden-force');
+
+            processedLampiranBase64 = "";
+            currentLat = 0;
+            currentLng = 0;
+
+            document.getElementById('uploadLampiranModal').classList.remove('hidden-force');
+            document.getElementById('uploadLampiranModal').style.display = 'flex';
+            
+            fetchCurrentGPSLocation();
+        }
+
+        function closeUploadLampiranModal() {
+            stopCameraTracks();
+            document.getElementById('uploadLampiranModal').classList.add('hidden-force');
+            document.getElementById('uploadLampiranModal').style.display = 'none';
+        }
+
+        function fetchCurrentGPSLocation() {
+            const gpsStatus = document.getElementById('gpsStatus');
+            gpsStatus.innerHTML = `<i class="fas fa-spinner fa-spin text-indigo-500"></i> Mengakses GPS satelit perangkat...`;
+            gpsStatus.className = "text-xs text-indigo-600 mt-1 font-semibold flex items-center justify-center gap-1.5";
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        currentLat = position.coords.latitude;
+                        currentLng = position.coords.longitude;
+                        gpsStatus.innerHTML = `<i class="fas fa-check-circle text-emerald-500"></i> GPS Terkunci: ${currentLat.toFixed(5)}, ${currentLng.toFixed(5)}`;
+                        gpsStatus.className = "text-xs text-emerald-600 mt-1 font-semibold flex items-center justify-center gap-1.5";
+                        
+                        if (processedLampiranBase64 !== "") {
+                            document.getElementById('btnSaveLampiran').disabled = false;
+                        }
+                    },
+                    (error) => {
+                        console.warn("Kesalahan Geolocation:", error);
+                        currentLat = 0;
+                        currentLng = 0;
+                        gpsStatus.innerHTML = `<i class="fas fa-exclamation-triangle text-amber-500"></i> GPS Aktif (Lokasi Manual/Default)`;
+                        gpsStatus.className = "text-xs text-amber-600 mt-1 font-semibold flex items-center justify-center gap-1.5";
+                        if (processedLampiranBase64 !== "") {
+                            document.getElementById('btnSaveLampiran').disabled = false;
+                        }
+                    },
+                    { enableHighAccuracy: true, timeout: 8000 }
+                );
+            } else {
+                gpsStatus.innerHTML = `<i class="fas fa-times-circle text-rose-500"></i> Perangkat tidak mendukung GPS`;
+                gpsStatus.className = "text-xs text-rose-600 mt-1 font-semibold flex items-center justify-center gap-1.5";
+            }
+        }
+
+        async function saveLampiranAttachment() {
+            const id = document.getElementById('uploadLampiranTargetId').value;
+            if (!processedLampiranBase64) return;
+
+            showNotification('Menyimpan', 'Mengirimkan foto bukti cuti mendadak...', 'info');
+
+            localStorage.setItem('SIPATU_LAMPIRAN_' + id, processedLampiranBase64);
+
+            const item = allHistory.find(x => x.id === id);
+            if (!item) return;
+
+            try {
+                if (isCloudConnected) {
+                    await databases.updateDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, item.appwriteId, {
+                        lampiran: processedLampiranBase64
+                    });
+                    showNotification('Berhasil', 'Lampiran bukti cuti mendadak tersimpan!', 'success');
+                } else {
+                    const localData = getLocalStorageHistory();
+                    const index = localData.findIndex(doc => doc.id === id);
+                    if (index !== -1) {
+                        localData[index].lampiran = processedLampiranBase64;
+                        saveLocalStorageHistory(localData);
+                    }
+                    showNotification('Berhasil (Offline)', 'Lampiran tersimpan secara lokal di ponsel Anda.', 'success');
+                }
+                
+                closeUploadLampiranModal();
+                await fetchHistory();
+            } catch (err) {
+                console.error("Kesalahan update lampiran:", err);
+                showNotification('Sukses Lokal', 'Bukti sukses distempel & tersimpan di perangkat.', 'success');
+                closeUploadLampiranModal();
+                await fetchHistory();
+            }
+        }
+
+        function openViewLampiranModal(id) {
+            const leave = allHistory.find(item => item.id === id);
+            const lampiranData = leave ? leave.lampiran : (localStorage.getItem('SIPATU_LAMPIRAN_' + id) || "");
+
+            if (!lampiranData || lampiranData.trim() === "") {
+                showNotification('Kosong', 'Tidak ada file lampiran bukti pada pengajuan ini.', 'warning');
+                return;
+            }
+
+            document.getElementById('viewLampiranMeta').innerText = `ID Pengajuan: ${id}`;
+            document.getElementById('viewLampiranImg').src = lampiranData;
+            
+            document.getElementById('viewLampiranModal').classList.remove('hidden-force');
+            document.getElementById('viewLampiranModal').style.display = 'flex';
+        }
+
+        function closeViewLampiranModal() {
+            document.getElementById('viewLampiranModal').classList.add('hidden-force');
+            document.getElementById('viewLampiranModal').style.display = 'none';
+        }
+
+        // ==========================================
+        // LEAVE MODIFICATION (ADMIN)
+        // ==========================================
         function openEditCuti(id) {
             const data = allHistory.find(item => item.id === id);
             if (!data) return;
@@ -1002,7 +1538,6 @@
             document.getElementById('editCutiJenis').value = data.jeniscuti;
             document.getElementById('editCutiAlasan').value = data.alasancuti;
 
-            // Set Tanggal Pengajuan di form input tanggal
             const rawTgl = data.tgl_pengajuan || data.$createdAt || new Date().toISOString();
             const yyyymmdd = new Date(rawTgl).toISOString().split('T')[0];
             document.getElementById('editCutiTglPengajuan').value = yyyymmdd;
@@ -1011,12 +1546,11 @@
                 editCutiDatePicker.destroy();
             }
             
-            const minDateVal = data.jeniscuti === "Cuti Mendadak" ? new Date().fp_incr(-14) : "today";
+            // Menu Edit Admin: Menghilangkan pembatasan minDate agar semua tanggal terbuka penuh
             editCutiDatePicker = flatpickr("#editCutiTgl", {
                 mode: "multiple",
                 dateFormat: "d/m/Y",
-                defaultDate: data.periodecuti.split(',').map(d => d.trim()),
-                minDate: minDateVal
+                defaultDate: data.periodecuti.split(',').map(d => d.trim())
             });
 
             document.getElementById('editCutiModal').classList.remove('hidden-force');
@@ -1024,14 +1558,7 @@
         }
 
         function handleEditCutiTypeChange() {
-            const j = document.getElementById('editCutiJenis').value;
-            if (editCutiDatePicker) {
-                if (j === "Cuti Mendadak") {
-                    editCutiDatePicker.set('minDate', new Date().fp_incr(-14));
-                } else {
-                    editCutiDatePicker.set('minDate', 'today');
-                }
-            }
+            // Semua tanggal di menu edit Admin tetap dibiarkan terbuka tanpa pembatasan jenis cuti
         }
 
         function closeEditCuti() {
@@ -1055,7 +1582,6 @@
             showNotification('Memproses', 'Menyimpan rincian cuti...', 'info');
 
             try {
-                // Parse tanggal pengajuan yang baru ke dalam format ISO String
                 const tglAjuISO = new Date(tglPengajuan).toISOString();
 
                 const updatedPayload = {
@@ -1124,6 +1650,137 @@
             }
         }
 
+        // MODAL AKSI TERPADU ADMIN (KELOLA CENTER)
+        function openAdminActionModal(id) {
+            const data = allHistory.find(item => item.id === id);
+            if (!data) return;
+
+            currentActiveActionId = id;
+            document.getElementById('actModalId').innerText = data.id;
+            document.getElementById('actModalNama').innerText = data.nama;
+            document.getElementById('actModalJabatan').innerText = data.jabatan;
+            document.getElementById('actModalJenis').innerText = data.jeniscuti;
+            document.getElementById('actModalTotalHari').innerText = `${data.totalHari} Hari`;
+            document.getElementById('actModalPeriode').innerText = data.displayPeriode;
+            document.getElementById('actModalAlasan').innerText = data.alasancuti !== '-' ? data.alasancuti : 'Tanpa keterangan alasan tambahan.';
+            document.getElementById('actModalReason').value = '';
+
+            // Status Badge Formatting
+            const status = (data.status || 'pending').toLowerCase();
+            const badge = document.getElementById('actModalStatusBadge');
+            if (status === 'approved' || status === 'disetujui') {
+                badge.className = "px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border bg-emerald-50 text-emerald-600 border-emerald-200 shrink-0";
+                badge.innerText = "Disetujui";
+            } else if (status === 'rejected' || status === 'ditolak') {
+                badge.className = "px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border bg-rose-50 text-rose-600 border-rose-200 shrink-0";
+                badge.innerText = "Ditolak";
+            } else {
+                badge.className = "px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border bg-blue-50 text-blue-600 border-blue-200 shrink-0";
+                badge.innerText = "Menunggu";
+            }
+
+            // Lampiran Status Box (Khusus Cuti Mendadak)
+            const isMendadak = data.jeniscuti === "Cuti Mendadak";
+            const container = document.getElementById('actModalLampiranContainer');
+            const lampiranStatus = document.getElementById('actModalLampiranStatus');
+
+            if (isMendadak) {
+                container.classList.remove('hidden-force');
+                const hasLampiran = data.lampiran && data.lampiran.trim() !== "";
+                if (hasLampiran) {
+                    lampiranStatus.className = "flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700 w-full shadow-sm";
+                    lampiranStatus.innerHTML = `
+                        <span class="flex items-center gap-1.5"><i class="fas fa-check-circle text-emerald-500"></i> Lampiran Terverifikasi</span>
+                        <button onclick="openViewLampiranModal('${data.id}')" class="bg-emerald-600 text-white px-2.5 py-1 rounded-lg hover:bg-emerald-700 transition-all flex items-center gap-1.5 uppercase tracking-wider text-[9px] font-black shrink-0 shadow-sm">
+                            <i class="fas fa-eye text-[10px]"></i> Lihat Foto
+                        </button>
+                    `;
+                } else {
+                    lampiranStatus.className = "flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-100 text-xs font-bold text-amber-700 w-full animate-pulse";
+                    lampiranStatus.innerHTML = `
+                        <span class="flex items-center gap-1.5"><i class="fas fa-exclamation-triangle text-amber-500 animate-bounce"></i> Belum Ada Berkas Foto</span>
+                        <span class="text-[9px] uppercase tracking-widest text-amber-500 font-extrabold shrink-0">Menunggu Unggahan</span>
+                    `;
+                }
+            } else {
+                container.classList.add('hidden-force');
+            }
+
+            document.getElementById('adminActionModal').classList.remove('hidden-force');
+            document.getElementById('adminActionModal').style.display = 'flex';
+        }
+
+        function closeAdminActionModal() {
+            document.getElementById('adminActionModal').classList.add('hidden-force');
+            document.getElementById('adminActionModal').style.display = 'none';
+        }
+
+        function triggerActModalEdit() {
+            const id = currentActiveActionId;
+            closeAdminActionModal();
+            openEditCuti(id);
+        }
+
+        function triggerActModalPrint() {
+            printOfficialPDF(currentActiveActionId, true);
+        }
+
+        function triggerActModalDelete() {
+            const id = currentActiveActionId;
+            closeAdminActionModal();
+            openDeleteCutiModal(id);
+        }
+
+        async function handleActModalDecision(status) {
+            const id = currentActiveActionId;
+            const reason = document.getElementById('actModalReason').value.trim();
+            closeAdminActionModal();
+
+            const leave = allHistory.find(item => item.id === id);
+            if (!leave) return;
+
+            leave.status = status;
+            showNotification('Memproses', `Memperbarui status & Menyiapkan WA...`, 'info');
+            renderAdminHistory();
+
+            try {
+                if (isCloudConnected) {
+                    await databases.updateDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, leave.appwriteId, { status: status });
+                    showNotification('Sukses', `Status berhasil diubah menjadi ${status}!`, 'success');
+                } else {
+                    const localData = getLocalStorageHistory();
+                    const index = localData.findIndex(doc => doc.id === id);
+                    if (index !== -1) {
+                        localData[index].status = status;
+                        saveLocalStorageHistory(localData);
+                    }
+                    showNotification('Sukses (Offline)', `Status diubah secara lokal menjadi ${status}!`, 'success');
+                }
+                updateAdminStats();
+                
+                const p = pegawaiList.find(x => x.nama.toLowerCase() === leave.nama.toLowerCase());
+                const phone = formatPhoneNumber(p ? p.telepon : null);
+
+                if (phone) {
+                    let statusTxt = status === 'Approved' ? 'DISETUJUI ✅' : 'DITOLAK ❌';
+                    let msg = `Halo *${leave.nama}*,\n\nPengajuan cuti Anda (ID: *${leave.id}*) telah *${statusTxt}*.\n`;
+                    if (reason) msg += `\n*Catatan Admin:*\n_${reason}_\n`;
+                    msg += `\nUnduh surat resmi keputusan Anda di tautan berikut:\nhttps://sipatu.layanan.go.id/download/pdf/${leave.id}`;
+
+                    setTimeout(() => window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank'), 500);
+                } else {
+                    showNotification('Info', 'Nomor WA tidak ada di Master Data. Hanya update status database.', 'warning');
+                }
+                await fetchHistory();
+            } catch (e) {
+                showNotification('Gagal', 'Terjadi kesalahan saat memperbarui status.', 'error');
+                fetchHistory(); 
+            }
+        }
+
+        // ==========================================
+        // MONITOR CUTI HARI INI
+        // ==========================================
         function renderMonitorCuti() {
             const tbody = document.getElementById('upcomingBody');
             if(!tbody) return; 
@@ -1136,11 +1793,14 @@
             allHistory.forEach(item => {
                 const s = (item.status || "").toLowerCase();
                 const isApproved = s === "approved" || s === "disetujui";
-                const isPending = s === "pending" || s === "" || !s;
+                const isRejected = s === "rejected" || s === "ditolak";
                 const isCutiTahunan = item.jeniscuti === "Cuti Tahunan";
                 const isCutiMendadak = item.jeniscuti === "Cuti Mendadak";
 
-                if ((isCutiTahunan && isApproved) || (isCutiMendadak && (isApproved || isPending))) {
+                // LOGIKA MONITOR CUTI REVISI:
+                // Cuti tahunan hanya muncul jika telah disetujui (Approved)
+                // Cuti mendadak selalu muncul asal TIDAK ditolak (Pending & Approved tetap muncul)
+                if ((isCutiTahunan && isApproved) || (isCutiMendadak && !isRejected)) {
                     if (item.rawPeriodeList.includes(todayKey)) listHariIni.push(item);
                 }
             });
@@ -1172,7 +1832,7 @@
         }
 
         // ==========================================
-        // PEGAWAI MANAGEMENT (ADMIN)
+        // GURU/KARYAWAN TABLE WORKSPACE
         // ==========================================
         function renderPegawaiTable() {
             const tbody = document.getElementById('pegawaiBody');
@@ -1264,7 +1924,7 @@
         }
 
         // ==========================================
-        // PROSES IMPORT CSV RIWAYAT CUTI (DIPERBARUI)
+        // PROSES IMPORT CSV RIWAYAT CUTI
         // ==========================================
         async function importHistoryCSV(e) {
             const file = e.target.files[0];
@@ -1272,12 +1932,10 @@
 
             shouldCancelImport = false;
             
-            // Tampilkan Modal Progres
             const progressModal = document.getElementById('importProgressModal');
             progressModal.classList.remove('hidden-force');
             progressModal.style.display = 'flex';
             
-            // Atur ulang isi modal
             document.getElementById('importProgressTitle').innerText = "Menganalisis Berkas CSV...";
             document.getElementById('importProgressSub').innerText = "Membaca baris berkas untuk menyiapkan proses unggah...";
             document.getElementById('importProgressBar').style.width = "0%";
@@ -1294,7 +1952,6 @@
                 const lines = evt.target.result.split('\n');
                 const validRows = [];
 
-                // Parsing baris terlebih dahulu
                 for (let i = 1; i < lines.length; i++) {
                     const line = lines[i].trim();
                     if (!line) continue;
@@ -1318,9 +1975,8 @@
                 let successCount = 0;
                 let failureCount = 0;
 
-                // Memetakan indeks kolom secara dinamis berdasarkan baris Header pertama CSV
                 const headerLine = lines[0] ? lines[0].trim() : "";
-                const headers = parseCSVLine(headerLine).map(h => h.toLowerCase().replace(/["']/g, '').trim());
+                const headers = parseCSVLine(headerLine).map(h => h.toLowerCase().replace(/[\r\n"']/g, '').trim());
 
                 let idIdx = headers.findIndex(h => h.includes('id') || h.includes('pengajuan'));
                 let tglIdx = headers.findIndex(h => h.includes('tanggal') || h.includes('tgl') || h.includes('date'));
@@ -1332,7 +1988,6 @@
                 let statusIdx = headers.findIndex(h => h.includes('status'));
                 let taIdx = headers.findIndex(h => h.includes('tahun') || h.includes('ta') || h.includes('ajaran'));
 
-                // Set indeks cadangan (fallback) jika nama header tidak cocok sempurna
                 if (idIdx === -1) idIdx = 0;
                 if (tglIdx === -1) tglIdx = 1;
                 if (namaIdx === -1) namaIdx = 2;
@@ -1352,24 +2007,40 @@
                     const rowData = validRows[idx];
                     const rowNum = idx + 1;
 
-                    // Mengambil dan memproses tanggal pengajuan secara aman dari CSV
                     const rawTglValue = rowData[tglIdx] ? rowData[tglIdx].trim() : "";
                     const processedTgl = formatISOFromString(rawTglValue);
 
-                    // Buat payload dokumen cuti
+                    let cleanId = (rowData[idIdx] || "").trim().replace(/[\r\n"']/g, '');
+                    if (!cleanId) cleanId = "RQ-" + Math.random().toString(36).substring(2, 7).toUpperCase();
+
+                    let cleanNama = (rowData[namaIdx] || "").trim().replace(/[\r\n"']/g, '');
+                    let cleanJabatan = (rowData[jabatanIdx] || "-").trim().replace(/[\r\n"']/g, '');
+                    let cleanJenis = (rowData[jenisIdx] || "Cuti Tahunan").trim().replace(/[\r\n"']/g, '');
+                    
+                    let cleanPeriode = (rowData[periodeIdx] || "-").trim().replace(/[\r\n"']/g, '');
+                    cleanPeriode = sanitizePeriodeCuti(cleanPeriode); 
+
+                    let cleanAlasan = (rowData[alasanIdx] || "-").trim().replace(/[\r\n"']/g, '');
+                    let cleanStatus = (rowData[statusIdx] || "Pending").trim().replace(/[\r\n"']/g, '');
+                    
+                    let cleanTa = (rowData[taIdx] || "").trim().replace(/[\r\n"']/g, '');
+                    if (!cleanTa) cleanTa = appSettings.tahunAjaran;
+                    if (cleanTa.length > 20) {
+                        cleanTa = cleanTa.substring(0, 20); 
+                    }
+
                     const payload = { 
-                        id: rowData[idIdx] || "RQ-" + Math.random().toString(36).substring(2, 7).toUpperCase(), 
+                        id: cleanId, 
                         tgl_pengajuan: processedTgl,
-                        nama: rowData[namaIdx], 
-                        jabatan: rowData[jabatanIdx] || "-", 
-                        jeniscuti: rowData[jenisIdx] || "Cuti Tahunan", 
-                        periodecuti: rowData[periodeIdx] || "-", 
-                        alasancuti: rowData[alasanIdx] || "-", 
-                        status: rowData[statusIdx] || "Pending",
-                        tahun_ajaran: rowData[taIdx] || appSettings.tahunAjaran
+                        nama: cleanNama, 
+                        jabatan: cleanJabatan, 
+                        jeniscuti: cleanJenis, 
+                        periodecuti: cleanPeriode, 
+                        alasancuti: cleanAlasan, 
+                        status: cleanStatus,
+                        tahun_ajaran: cleanTa
                     };
 
-                    // Update UI status progres per baris
                     const currentPercent = Math.round(((idx + 1) / totalRows) * 100);
                     document.getElementById('importProgressBar').style.width = `${currentPercent}%`;
                     document.getElementById('importProgressCount').innerText = `${idx + 1} / ${totalRows} Baris`;
@@ -1378,7 +2049,6 @@
                     try {
                         if (isCloudConnected) {
                             await databases.createDocument(APPWRITE_DATABASE, APPWRITE_COLLECTION, ID.unique(), payload);
-                            // Berikan jeda adaptif (throttling) demi keamanan kuota Appwrite Cloud gratis
                             await new Promise(resolve => setTimeout(resolve, 350));
                         } else {
                             const ld = getLocalStorageHistory();
@@ -1393,7 +2063,6 @@
                         failureCount++;
                         let errorMsg = err.message || "Kesalahan tidak diketahui";
                         
-                        // Deteksi tipe error yang umum terjadi pada Appwrite gratis
                         if (err.code === 429) {
                             errorMsg = "Terlalu banyak permintaan (Rate Limit). Coba kurangi ukuran CSV atau tunggu beberapa saat.";
                         } else if (err.code === 401 || err.code === 403) {
@@ -1403,33 +2072,29 @@
                         }
 
                         appendImportLog(`✗ Baris ${rowNum} (${payload.nama}): Gagal. Alasan: ${errorMsg}`, "text-rose-600");
-                        console.error(`Gagal mengunggah baris ke-${rowNum}`, err);
                     }
                 }
 
-                // Selesaikan proses
                 finalizeImportState(successCount, failureCount, totalRows);
-                e.target.value = ''; // Reset input file
-                fetchHistory(); // Segarkan riwayat di dashboard
+                e.target.value = ''; 
+                fetchHistory(); 
             };
             
             reader.readAsText(file);
         }
 
-        // Penolong visual untuk log aktivitas import
         function appendImportLog(text, className) {
             const container = document.getElementById('importLogLines');
-            const logLine = document.createElement('p');
-            logLine.className = className;
-            logLine.innerText = text;
-            container.appendChild(logLine);
-            
-            // Auto scroll log ke baris terbawah
-            const logArea = document.getElementById('importLogArea');
-            logArea.scrollTop = logArea.scrollHeight;
+            if (container) {
+                const logLine = document.createElement('p');
+                logLine.className = className;
+                logLine.innerText = text;
+                container.appendChild(logLine);
+                const logArea = document.getElementById('importLogArea');
+                logArea.scrollTop = logArea.scrollHeight;
+            }
         }
 
-        // Tampilkan keadaan gagal di awal jika berkas bermasalah
         function showImportErrorState(msg) {
             document.getElementById('importProgressTitle').innerText = "Sinkronisasi Gagal";
             document.getElementById('importProgressSub').innerText = msg;
@@ -1438,7 +2103,6 @@
             document.getElementById('btnCloseProgress').classList.remove('hidden');
         }
 
-        // Selesaikan visualisasi progres unggah
         function finalizeImportState(success, failure, total) {
             document.getElementById('btnCancelImport').classList.add('hidden');
             document.getElementById('btnCloseProgress').classList.remove('hidden');
@@ -1469,57 +2133,48 @@
             document.getElementById('importProgressModal').style.display = 'none';
         }
 
-        // Mengamankan parsing string tanggal ke format ISO yang valid dengan berbagai variasi format (DIPERBARUI - SANGAT KUAT)
         function formatISOFromString(str) {
             if (!str) return new Date().toISOString();
-            str = str.trim().replace(/["']/g, '');
+            let raw = str.replace(/[\r\n"']/g, '').trim();
+            if (!raw) return new Date().toISOString();
             
-            if (str.includes('T')) {
-                const d = new Date(str);
+            if (raw.includes('T')) {
+                const d = new Date(raw);
                 if (!isNaN(d.getTime())) return d.toISOString();
             }
 
-            // Coba parsing bawaan JavaScript secara langsung
-            let standardParse = new Date(str);
+            // Atasi masalah pemisahan regional DD/MM/YYYY secara konsisten
+            const parts = raw.split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+                const year = parseInt(parts[2], 10);
+                const d = new Date(year, month, day, 12, 0, 0); // Atur jam siang hari demi keamanan timezone drift
+                if (!isNaN(d.getTime())) return d.toISOString();
+            }
+
+            // Atasi pemisahan tanda hubung YYYY-MM-DD
+            const dashParts = raw.split('-');
+            if (dashParts.length === 3 && dashParts[0].length === 4) {
+                const year = parseInt(dashParts[0], 10);
+                const month = parseInt(dashParts[1], 10) - 1;
+                const day = parseInt(dashParts[2], 10);
+                const d = new Date(year, month, day, 12, 0, 0);
+                if (!isNaN(d.getTime())) return d.toISOString();
+            }
+
+            // Atasi pemisahan tanda hubung DD-MM-YYYY
+            if (dashParts.length === 3 && dashParts[2].length === 4) {
+                const day = parseInt(dashParts[0], 10);
+                const month = parseInt(dashParts[1], 10) - 1;
+                const year = parseInt(dashParts[2], 10);
+                const d = new Date(year, month, day, 12, 0, 0);
+                if (!isNaN(d.getTime())) return d.toISOString();
+            }
+
+            let standardParse = new Date(raw);
             if (!isNaN(standardParse.getTime())) {
                 return standardParse.toISOString();
-            }
-
-            // Mengurai format DD/MM/YYYY, DD-MM-YYYY, atau DD.MM.YYYY (opsional dengan jam:menit:detik)
-            const slashPattern = /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/;
-            const matchSlash = str.match(slashPattern);
-            if (matchSlash) {
-                const day = parseInt(matchSlash[1], 10);
-                const month = parseInt(matchSlash[2], 10) - 1;
-                const year = parseInt(matchSlash[3], 10);
-                const hrs = matchSlash[4] ? parseInt(matchSlash[4], 10) : 12;
-                const mins = matchSlash[5] ? parseInt(matchSlash[5], 10) : 0;
-                const secs = matchSlash[6] ? parseInt(matchSlash[6], 10) : 0;
-                const d = new Date(year, month, day, hrs, mins, secs);
-                if (!isNaN(d.getTime())) return d.toISOString();
-            }
-
-            // Mengurai format YYYY-MM-DD atau YYYY/MM/DD (opsional dengan jam:menit:detik)
-            const ymdPattern = /^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/;
-            const matchYmd = str.match(ymdPattern);
-            if (matchYmd) {
-                const year = parseInt(matchYmd[1], 10);
-                const month = parseInt(matchYmd[2], 10) - 1;
-                const day = parseInt(matchYmd[3], 10);
-                const hrs = matchYmd[4] ? parseInt(matchYmd[4], 10) : 12;
-                const mins = matchYmd[5] ? parseInt(matchYmd[5], 10) : 0;
-                const secs = matchYmd[6] ? parseInt(matchYmd[6], 10) : 0;
-                const d = new Date(year, month, day, hrs, mins, secs);
-                if (!isNaN(d.getTime())) return d.toISOString();
-            }
-
-            // Metode pencarian cadangan terakhir (space-split parsing)
-            const spaceParts = str.split(' ');
-            if (spaceParts.length > 0) {
-                let simpleParse = new Date(spaceParts[0]);
-                if (!isNaN(simpleParse.getTime())) {
-                    return simpleParse.toISOString();
-                }
             }
 
             return new Date().toISOString();
@@ -1541,11 +2196,34 @@
             closeEditPegawai();
         }
 
+        // VISIBILITAS PASSWORD / PIN ADMIN
+        function togglePinVisibility() {
+            const pinInput = document.getElementById('adminPinInput');
+            const checkbox = document.getElementById('toggleShowPin');
+            pinInput.type = checkbox.checked ? 'text' : 'password';
+        }
+
+        // KEYBOARD ENTER AUTOCOMPLETE HANDLER
+        function handleNameInputKeyDown(event) {
+            if (event.key === 'Enter') {
+                const dropdown = document.getElementById('nameDropdown');
+                if (!dropdown.classList.contains('hidden')) {
+                    event.preventDefault();
+                    const firstItem = dropdown.querySelector('div');
+                    if (firstItem) {
+                        firstItem.click();
+                    }
+                }
+            }
+        }
+
         // ==========================================
-        // MENU ADMIN NAVIGASI & SETTINGS
+        // PORTAL AUTHORIZATION & SECURITY
         // ==========================================
         function openAdminPinModal() {
             document.getElementById('adminPinInput').value = "";
+            document.getElementById('toggleShowPin').checked = false;
+            document.getElementById('adminPinInput').type = 'password';
             document.getElementById('admin-pin-error').classList.add('hidden');
             document.getElementById('adminPinModal').classList.remove('hidden-force');
             document.getElementById('adminPinModal').style.display = 'flex';
@@ -1602,11 +2280,14 @@
         function saveSettings() {
             const newNama = document.getElementById('setNamaSekolah').value.trim();
             const newTahun = document.getElementById('setTahunAjaran').value.trim();
+            const newWaAdmin = document.getElementById('setWaAdmin').value.trim();
             const logoInput = document.getElementById('setLogo').files[0];
 
             if(!newNama || !newTahun) return showNotification('Peringatan', 'Nama Sekolah dan Tahun Ajaran wajib diisi!', 'warning');
+            if(newTahun.length > 20) return showNotification('Peringatan', 'Tahun Ajaran tidak boleh melebihi 20 karakter!', 'warning');
 
             appSettings.namaSekolah = newNama;
+            appSettings.waAdmin = newWaAdmin;
             let isYearChanged = appSettings.tahunAjaran !== newTahun;
             appSettings.tahunAjaran = newTahun;
 
@@ -1630,7 +2311,7 @@
         }
 
         // ==========================================
-        // MODAL ALASAN & WHATSAPP LOGIC
+        // ALASAN CONFIRMATION & WHATSAPP GENERATION
         // ==========================================
         function openReasonModal(id, status) {
             document.getElementById('pendingActionId').value = id;
@@ -1663,7 +2344,7 @@
                 return;
             }
 
-            const msg = `Halo *${leave.nama}*,\nIni adalah admin SIPATU ${appSettings.namaSekolah}.`;
+            const msg = `Halo *${leave.nama}*,\nIni adalah admin SIPATU *${appSettings.namaSekolah}*.`;
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
@@ -1716,23 +2397,37 @@
         }
 
         // ==========================================
-        // FORM SUBMISSION & LOGIC
+        // PEGAWAI SUBMISSION FLOW (DENGAN WA ADMIN)
         // ==========================================
         async function handleSubmit(event) {
             event.preventDefault();
-            const btn = document.getElementById('submit-btn'); btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Mengirim...`;
+            const btn = document.getElementById('submit-btn'); 
+            btn.disabled = true; 
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Mengirim...`;
+            
+            const jenisVal = document.getElementById('jenis').value;
+            const alasanVal = document.getElementById('alasan').value.trim();
+            
+            if (jenisVal === "Cuti Mendadak" && !alasanVal) {
+                showNotification('Peringatan', 'Alasan mendadak wajib diisi!', 'warning');
+                btn.disabled = false;
+                btn.innerHTML = `Kirim Pengajuan`;
+                return;
+            }
+            
             currentSubmissionId = "RQ-" + Math.random().toString(36).substring(2, 7).toUpperCase();
             
             const payload = { 
                 id: currentSubmissionId, 
                 nama: document.getElementById('namaInput').value, 
                 jabatan: document.getElementById('jabatan').value, 
-                jeniscuti: document.getElementById('jenis').value, 
+                jeniscuti: jenisVal, 
                 periodecuti: document.getElementById('tglCuti').value, 
-                alasancuti: document.getElementById('alasan').value || "-",
+                alasancuti: alasanVal || "-",
                 tgl_pengajuan: new Date().toISOString(),
                 status: "Pending",
-                tahun_ajaran: appSettings.tahunAjaran
+                tahun_ajaran: appSettings.tahunAjaran.substring(0, 20),
+                lampiran: ""
             };
             
             try {
@@ -1746,8 +2441,10 @@
                     showNotification('Tersimpan Lokal', 'Offline: Pengajuan tersimpan di HP Anda.', 'success');
                 }
 
-                if (payload.jeniscuti === "Cuti Mendadak") showRedirectModal(); 
+                openWhatsAppAdminNotification(payload);
+
                 document.getElementById('cutiForm').reset(); 
+                handleTypeChange(); 
                 setTimeout(fetchHistory, 1000); 
             } catch (e) { 
                 console.error(e);
@@ -1755,16 +2452,48 @@
                 localData.push({ ...payload, $id: 'local_' + currentSubmissionId });
                 saveLocalStorageHistory(localData);
                 showNotification('Tersimpan Lokal', 'Koneksi terganggu. Data disimpan offline.', 'warning');
-                if (payload.jeniscuti === "Cuti Mendadak") showRedirectModal(); 
+                
+                openWhatsAppAdminNotification(payload);
+
                 document.getElementById('cutiForm').reset();
+                handleTypeChange(); 
                 setTimeout(fetchHistory, 1000);
             } finally { 
                 btn.disabled = false; btn.innerHTML = `Kirim Pengajuan`; 
             }
         }
 
+        function openWhatsAppAdminNotification(payload) {
+            const adminWaRaw = appSettings.waAdmin || '081234567890';
+            const adminWaFormatted = formatPhoneNumber(adminWaRaw);
+            if (!adminWaFormatted) {
+                showNotification('Info', 'Nomor WA Admin belum terkonfigurasi di pengaturan.', 'warning');
+                return;
+            }
+
+            const isMendadak = payload.jeniscuti === "Cuti Mendadak";
+            const formattedDateStr = humanizeRange(payload.periodecuti);
+            const pdfLink = `https://sipatu.layanan.go.id/download/pdf/${payload.id}`;
+
+            let waMessage = `*PERMOHONAN CUTI BARU (SIPATU)*\n\n`;
+            waMessage += `Halo Admin SIPATU, saya mengajukan permohonan cuti resmi:\n\n`;
+            waMessage += `• *ID Pengajuan:* ${payload.id}\n`;
+            waMessage += `• *Nama:* ${payload.nama}\n`;
+            waMessage += `• *Jabatan:* ${payload.jabatan}\n`;
+            waMessage += `• *Kategori:* ${payload.jeniscuti}\n`;
+            waMessage += `• *Periode:* ${formattedDateStr}\n`;
+            waMessage += `• *Alasan:* ${payload.alasancuti}\n\n`;
+            if (isMendadak) {
+                waMessage += `_Pemberitahuan: Pemohon Cuti Mendadak wajib mengirimkan lampiran fisik berkas pendukung paling lambat 1 hari setelah selesai cuti._\n\n`;
+            }
+            waMessage += `Unduh / Lihat Slip Permohonan Cuti (PDF):\n${pdfLink}`;
+
+            const waUrl = `https://wa.me/${adminWaFormatted}?text=${encodeURIComponent(waMessage)}`;
+            window.open(waUrl, '_blank');
+        }
+
         // ==========================================
-        // CSV EXPORT/IMPORT (CUTI)
+        // CSV EXPORT/IMPORT SYSTEMS
         // ==========================================
         function generatePeriodicCSV() {
             const startStr = document.getElementById('reportStart').value;
@@ -1824,7 +2553,7 @@
         }
 
         // ==========================================
-        // UTILITIES & PDF GENERATION
+        // UTILITIES & CALENDAR RESOLVERS
         // ==========================================
         function updateAdminStats() {
             let pending = 0, approved = 0, rejected = 0;
@@ -1875,16 +2604,59 @@
         function parseCustomDate(dateStr) {
             if (!dateStr || dateStr === "-") return null;
             if (dateStr instanceof Date) return dateStr;
-            if (typeof dateStr === 'string' && dateStr.includes('T')) {
-                const parsedDate = new Date(dateStr);
-                if (!isNaN(parsedDate.getTime())) return parsedDate;
+            
+            let s = String(dateStr).trim();
+            
+            // Atasi format standar ISO
+            if (s.includes('T')) {
+                const parsed = new Date(s);
+                if (!isNaN(parsed.getTime())) return parsed;
             }
-            const d = new Date(dateStr);
-            return isNaN(d.getTime()) ? null : d;
+            
+            // Atasi pemisahan regional DD/MM/YYYY (Flatpickr Output)
+            const parts = s.split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+                const year = parseInt(parts[2], 10);
+                const d = new Date(year, month, day, 12, 0, 0); // midday safety
+                if (!isNaN(d.getTime())) return d;
+            }
+            
+            // Atasi pemisahan tanda hubung YYYY-MM-DD
+            const ymdParts = s.split('-');
+            if (ymdParts.length === 3 && ymdParts[0].length === 4) {
+                const year = parseInt(ymdParts[0], 10);
+                const month = parseInt(ymdParts[1], 10) - 1;
+                const day = parseInt(ymdParts[2], 10);
+                const d = new Date(year, month, day, 12, 0, 0);
+                if (!isNaN(d.getTime())) return d;
+            }
+
+            // Atasi pemisahan tanda hubung DD-MM-YYYY
+            if (ymdParts.length === 3 && ymdParts[2].length === 4) {
+                const day = parseInt(ymdParts[0], 10);
+                const month = parseInt(ymdParts[1], 10) - 1;
+                const year = parseInt(ymdParts[2], 10);
+                const d = new Date(year, month, day, 12, 0, 0);
+                if (!isNaN(d.getTime())) return d;
+            }
+
+            const fallback = new Date(s);
+            return isNaN(fallback.getTime()) ? null : fallback;
+        }
+
+        function sanitizePeriodeCuti(str) {
+            if (!str) return "-";
+            let cleaned = str.trim().replace(/[\r\n"']/g, '');
+            if (cleaned.length > 50) {
+                cleaned = cleaned.substring(0, 47) + "...";
+            }
+            return cleaned;
         }
 
         function humanizeDate(di) { const d = parseCustomDate(di); return d ? d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : "-"; }
-        function humanizeRange(rs) { return (!rs || rs === "-") ? "-" : rs.split(',').map(dStr => { const d = parseCustomDate(dStr.trim()); return d ? d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : dStr; }).join(', '); }
+        function humanizeRange(rs) { return (!rs || rs === "-") ? "-" : rs.split(',').map(dStr => { const d = parseCustomDate(dStr.trim()); return d ? d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : dStr; }).join(', '); }
 
         function nextPage(mode) { 
             if(mode === 'admin') { if(currentPageAdmin < Math.ceil(filteredAdmin.length / rowsPerPage)) { currentPageAdmin++; renderAdminHistory(); } }
@@ -1897,9 +2669,28 @@
 
         function handleTypeChange() { 
             const j = document.getElementById('jenis').value; 
-            const a = document.getElementById('alasan-area'); 
-            if (j === "Cuti Mendadak") { a.classList.remove('hidden'); datePicker.set('minDate', new Date().fp_incr(-14)); } 
-            else { a.classList.add('hidden'); datePicker.set('minDate', 'today'); } 
+            const lbl = document.getElementById('lblAlasanForm');
+            const textarea = document.getElementById('alasan');
+            
+            if (j === "Cuti Mendadak") { 
+                // Cuti Mendadak: Diizinkan mengajukan mundur hingga 7 hari ke belakang
+                datePicker.set('minDate', new Date().fp_incr(-7)); 
+                textarea.required = true;
+                if(lbl) {
+                    lbl.innerHTML = 'Alasan Mendadak <span class="text-rose-500 font-black">*Wajib</span>';
+                    lbl.className = "block text-[10px] font-bold text-amber-600 uppercase mb-1";
+                }
+                textarea.placeholder = "Jelaskan secara singkat (Wajib)...";
+            } else { 
+                // Cuti Tahunan: Wajib diajukan minimal 14 hari di masa depan
+                datePicker.set('minDate', new Date().fp_incr(14)); 
+                textarea.required = false;
+                if(lbl) {
+                    lbl.innerHTML = 'Alasan Cuti <span class="text-slate-400 font-normal">(Opsional)</span>';
+                    lbl.className = "block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider";
+                }
+                textarea.placeholder = "Jelaskan secara singkat (Opsional)...";
+            } 
         }
 
         function showNotification(title, message, type) {
@@ -1921,13 +2712,9 @@
 
         function selectP(n, j) { document.getElementById('namaInput').value = n; document.getElementById('jabatan').value = j; document.getElementById('nameDropdown').classList.add('hidden'); }
 
-        function showRedirectModal() { document.getElementById('displayId').innerText = currentSubmissionId; document.getElementById('redirectModal').classList.remove('hidden-force'); document.getElementById('redirectModal').style.display = 'flex'; }
-        function copySubmissionId() {
-            const el = document.createElement('textarea'); el.value = currentSubmissionId; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
-            document.getElementById('copySuccess').classList.remove('hidden'); 
-        }
-        function redirectToForm() { document.getElementById('redirectModal').classList.add('hidden-force'); document.getElementById('redirectModal').style.display = 'none'; }
-
+        // ==========================================
+        // OFFICIAL SLIP PDF GENERATOR
+        // ==========================================
         function printOfficialPDF(id, isPreview = false) {
             const data = allHistory.find(item => item.id === id);
             if (!data) return;
