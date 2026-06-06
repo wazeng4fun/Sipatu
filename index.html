@@ -102,6 +102,10 @@ export default function App() {
         };
         if (saved) {
             const parsed = JSON.parse(saved);
+            // Sanitasi sederhana jika ada data corrupt "{appSettings...}"
+            if (typeof parsed.logoBase64 === 'string' && parsed.logoBase64.includes('{')) {
+                parsed.logoBase64 = ''; 
+            }
             return { ...defaultSettings, ...parsed };
         }
         return defaultSettings;
@@ -249,6 +253,8 @@ export default function App() {
             
             const formattedData = data ? data.map(item => ({
                 ...item,
+                // Sanitasi data foto dari database jika corrupt
+                foto_bukti: (item.foto_bukti && !item.foto_bukti.includes('{')) ? item.foto_bukti : null,
                 has_foto: item.has_foto !== undefined ? item.has_foto : !!item.lokasi_bukti
             })) : [];
 
@@ -266,6 +272,9 @@ export default function App() {
             const { data: setData, error: setError } = await supabase.from(SUPABASE_TABLE_SETTINGS).select('*').eq('id', '1');
             if (!setError && setData && setData.length > 0) {
                 const fetchedSettings = setData[0];
+                if (typeof fetchedSettings.logoBase64 === 'string' && fetchedSettings.logoBase64.includes('{')) {
+                    fetchedSettings.logoBase64 = '';
+                }
                 setAppSettings(prev => ({ ...prev, ...fetchedSettings }));
                 localStorage.setItem('SIPATU_SETTINGS', JSON.stringify(fetchedSettings));
             }
@@ -619,7 +628,18 @@ export default function App() {
         setModalPayload(leaveItem);
         setEditAlasan(leaveItem.alasancuti || '-');
         setEditJenis(leaveItem.jeniscuti || 'Cuti Tahunan');
-        setEditTglPengajuan(leaveItem.tgl_pengajuan ? leaveItem.tgl_pengajuan.split('T')[0] : '');
+        
+        // Perbaikan format tanggal agar selalu valid di YYYY-MM-DD
+        let safeDateStr = '';
+        if (leaveItem.tgl_pengajuan) {
+            try {
+                safeDateStr = new Date(leaveItem.tgl_pengajuan).toISOString().split('T')[0];
+            } catch (err) {
+                safeDateStr = '';
+            }
+        }
+        setEditTglPengajuan(safeDateStr);
+        
         const dates = leaveItem.periodecuti ? leaveItem.periodecuti.split(',').map(d => d.trim()).filter(Boolean) : [];
         setEditDates(dates);
         setActiveModal('MANAGE_LEAVE');
@@ -1192,7 +1212,7 @@ export default function App() {
                                     <div className="flex gap-2 mb-2">
                                         <input 
                                             type="date" 
-                                            value={dateInput} 
+                                            value={dateInput || ''} 
                                             onChange={e => setDateInput(e.target.value)} 
                                             min={formData.jeniscuti === 'Cuti Tahunan' ? getCutiTahunanMinDate() : getCutiMendadakMinDate()}
                                             max={formData.jeniscuti === 'Cuti Tahunan' ? undefined : getCutiMendadakMaxDate()}
@@ -1710,7 +1730,7 @@ export default function App() {
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-bold text-slate-500 mb-1">Tgl Pengajuan</label>
-                                        <input type="date" value={editTglPengajuan} onChange={e => setEditTglPengajuan(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700" />
+                                        <input type="date" value={editTglPengajuan || ''} onChange={e => setEditTglPengajuan(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700" />
                                     </div>
                                 </div>
 
@@ -1719,7 +1739,7 @@ export default function App() {
                                     <div className="flex gap-2 mb-2">
                                         <input 
                                             type="date" 
-                                            value={editDateInput} 
+                                            value={editDateInput || ''} 
                                             onChange={e => setEditDateInput(e.target.value)} 
                                             min={editJenis === 'Cuti Tahunan' ? getCutiTahunanMinDate() : getCutiMendadakMinDate()}
                                             max={editJenis === 'Cuti Tahunan' ? undefined : getCutiMendadakMaxDate()}
