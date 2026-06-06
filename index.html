@@ -70,6 +70,32 @@ const humanizeRange = (rs) => {
     return rs;
 };
 
+// Fungsi Cerdas untuk Parsing CSV yang mengabaikan koma di dalam tanda kutip (misal: "Budi, S.Pd.")
+const parseCSVLine = (line) => {
+    const result = [];
+    let startValueBndry = 0;
+    let insideQuote = false;
+
+    for (let i = 0; i < line.length; i++) {
+        if (line[i] === '"') {
+            insideQuote = !insideQuote;
+        } else if (line[i] === ',' && !insideQuote) {
+            let val = line.substring(startValueBndry, i).trim();
+            if (val.startsWith('"') && val.endsWith('"')) {
+                val = val.substring(1, val.length - 1).replace(/""/g, '"');
+            }
+            result.push(val);
+            startValueBndry = i + 1;
+        }
+    }
+    let val = line.substring(startValueBndry).trim();
+    if (val.startsWith('"') && val.endsWith('"')) {
+        val = val.substring(1, val.length - 1).replace(/""/g, '"');
+    }
+    result.push(val);
+    return result;
+};
+
 export default function App() {
     const [scriptsLoaded, setScriptsLoaded] = useState(false);
     const [view, setView] = useState('user'); // 'user' | 'admin'
@@ -113,11 +139,8 @@ export default function App() {
 
     const [pegawaiList, setPegawaiList] = useState(() => {
         const saved = localStorage.getItem('SIPATU_PEGAWAI');
-        return saved ? JSON.parse(saved) : [
-            { id: 'PGW-10001', nama: 'Budi Santoso', jabatan: 'Guru Matematika', telepon: '08123456789' },
-            { id: 'PGW-10002', nama: 'Siti Rahma', jabatan: 'Staf Kurikulum', telepon: '08122334455' },
-            { id: 'PGW-10003', nama: 'Ahmad Yani', jabatan: 'Guru Fisika', telepon: '08134455667' }
-        ];
+        // Menghapus data mock, mengembalikan array kosong sebagai nilai awal default
+        return saved ? JSON.parse(saved) : [];
     });
 
     const [historyData, setHistoryData] = useState([]);
@@ -758,6 +781,32 @@ export default function App() {
         }
     };
 
+    const processDeleteAllCuti = async (confirmationText) => {
+        if (confirmationText !== "KONFIRMASI") {
+            showToast('Dibatalkan', 'Teks konfirmasi tidak sesuai.', 'error');
+            return;
+        }
+
+        setActiveModal(null);
+        showToast('Memproses', 'Sedang menghapus semua data...', 'info');
+
+        try {
+            const supabase = getSupabase();
+            if (isCloudConnected && supabase) {
+                // Menghapus dari Supabase dengan kondisi yang selalu bernilai true
+                const { error } = await supabase.from(SUPABASE_TABLE).delete().neq('id', 'TIDAK_MUNGKIN_ADA_ID_INI');
+                if (error) throw error;
+            }
+            
+            // Bersihkan lokal
+            saveLocalHistory([]);
+            setHistoryData([]);
+            showToast('Sukses', 'Semua data cuti berhasil dihapus!', 'success');
+        } catch (e) {
+            showToast('Gagal', 'Gagal menghapus seluruh data pada cloud.', 'error');
+        }
+    };
+
     const handleSelectAllPegawai = (e) => {
         if (e.target.checked) {
             setSelectedPegawai(pegawaiList.map(p => p.id));
@@ -784,7 +833,7 @@ export default function App() {
     };
 
     const downloadPegawaiTemplate = () => {
-        const csvContent = "data:text/csv;charset=utf-8,id,nama,jabatan,telepon\r\nPGW-10002,Ahmad Yani,Guru Fisika,08129999888\r\nPGW-10003,Siti Aminah,Staf TU,08137777666\r\n";
+        const csvContent = 'data:text/csv;charset=utf-8,id,nama,jabatan,telepon\r\nPGW-10002,"Ahmad Yani, S.Pd.",Guru Fisika,08129999888\r\nPGW-10003,"Siti Aminah, M.Kom.",Staf TU,08137777666\r\n';
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
@@ -804,7 +853,7 @@ export default function App() {
             const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
             const newPegawai = [];
             for (let i = 1; i < lines.length; i++) {
-                const cols = lines[i].split(",");
+                const cols = parseCSVLine(lines[i]);
                 if (cols.length >= 3) {
                     newPegawai.push({
                         id: cols[0] || ("PGW-" + Math.floor(10000 + Math.random() * 90000)),
@@ -841,7 +890,7 @@ export default function App() {
     };
 
     const downloadRiwayatCutiTemplate = () => {
-        const csvContent = "data:text/csv;charset=utf-8,id,nama,jabatan,jeniscuti,periodecuti,alasancuti,tgl_pengajuan,status\r\nRQ-SAMPLE1,Budi Santoso,Guru Matematika,Cuti Tahunan,15/06/2026,Acara Keluarga,2026-06-01T10:00:00.000Z,Approved\r\n";
+        const csvContent = 'data:text/csv;charset=utf-8,id,nama,jabatan,jeniscuti,periodecuti,alasancuti,tgl_pengajuan,status\r\nRQ-SAMPLE1,"Budi Santoso, S.Pd.",Guru Matematika,Cuti Tahunan,15/06/2026,Acara Keluarga,2026-06-01T10:00:00.000Z,Approved\r\n';
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
@@ -861,7 +910,7 @@ export default function App() {
             const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
             const newHistory = [];
             for (let i = 1; i < lines.length; i++) {
-                const cols = lines[i].split(",");
+                const cols = parseCSVLine(lines[i]);
                 if (cols.length >= 8) {
                     newHistory.push({
                         id: cols[0] || ("RQ-" + Math.random().toString(36).substring(2, 7).toUpperCase()),
@@ -1741,8 +1790,6 @@ export default function App() {
                                             type="date" 
                                             value={editDateInput || ''} 
                                             onChange={e => setEditDateInput(e.target.value)} 
-                                            min={editJenis === 'Cuti Tahunan' ? getCutiTahunanMinDate() : getCutiMendadakMinDate()}
-                                            max={editJenis === 'Cuti Tahunan' ? undefined : getCutiMendadakMaxDate()}
                                             className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700" 
                                         />
                                         <button type="button" onClick={() => {
