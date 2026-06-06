@@ -8,7 +8,9 @@ import {
 
 const SUPABASE_URL = 'https://iryyiynuerthbasjduii.supabase.co'; 
 const SUPABASE_ANON_KEY = 'sb_publishable_xvkk4sUb0Oc10YqX1vnuDQ_OWCxh75a';       
-const SUPABASE_TABLE = 'cuti_history';                      
+const SUPABASE_TABLE = 'cuti_history';           
+const SUPABASE_TABLE_PEGAWAI = 'pegawai';
+const SUPABASE_TABLE_SETTINGS = 'pengaturan';
 
 let supabaseClientInstance = null;
 const getSupabase = () => {
@@ -252,6 +254,22 @@ export default function App() {
 
             saveLocalHistory(formattedData);
             setHistoryData(formattedData);
+
+            // Fetch Data Pegawai
+            const { data: pegData, error: pegError } = await supabase.from(SUPABASE_TABLE_PEGAWAI).select('*');
+            if (!pegError && pegData && pegData.length > 0) {
+                setPegawaiList(pegData);
+                localStorage.setItem('SIPATU_PEGAWAI', JSON.stringify(pegData));
+            }
+
+            // Fetch Data Pengaturan
+            const { data: setData, error: setError } = await supabase.from(SUPABASE_TABLE_SETTINGS).select('*').eq('id', '1');
+            if (!setError && setData && setData.length > 0) {
+                const fetchedSettings = setData[0];
+                setAppSettings(prev => ({ ...prev, ...fetchedSettings }));
+                localStorage.setItem('SIPATU_SETTINGS', JSON.stringify(fetchedSettings));
+            }
+
             setIsCloudConnected(true);
         } catch (e) {
             console.warn("Koneksi cloud bermasalah, memuat data lokal...", e);
@@ -728,14 +746,18 @@ export default function App() {
         }
     };
 
-    const handleSelectPegawai = (id) => {
-        setSelectedPegawai(prev => 
-            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-        );
-    };
-
-    const handleBulkDeletePegawai = () => {
+    const handleBulkDeletePegawai = async () => {
         if (selectedPegawai.length === 0) return;
+        
+        const supabase = getSupabase();
+        if (isCloudConnected && supabase) {
+            try {
+                await supabase.from(SUPABASE_TABLE_PEGAWAI).delete().in('id', selectedPegawai);
+            } catch(e) {
+                console.error('Gagal hapus pegawai di Cloud', e);
+            }
+        }
+        
         setPegawaiList(prev => prev.filter(p => !selectedPegawai.includes(p.id)));
         setSelectedPegawai([]);
         showToast("Sukses", `Berhasil menghapus ${selectedPegawai.length} pegawai`, "success");
@@ -773,11 +795,20 @@ export default function App() {
                 }
             }
             if (newPegawai.length > 0) {
+                const supabase = getSupabase();
                 setPegawaiList(prev => {
                     const existingIds = new Set(prev.map(p => p.id));
                     const filteredNew = newPegawai.filter(p => !existingIds.has(p.id));
                     const updated = [...prev, ...filteredNew];
                     localStorage.setItem('SIPATU_PEGAWAI', JSON.stringify(updated));
+                    
+                    // Sync to Cloud
+                    if (isCloudConnected && supabase && filteredNew.length > 0) {
+                        supabase.from(SUPABASE_TABLE_PEGAWAI).insert(filteredNew).then(({error}) => {
+                            if (error) console.error("Gagal sinkron impor pegawai ke Cloud", error);
+                        });
+                    }
+                    
                     return updated;
                 });
                 showToast("Sukses", `Berhasil mengimpor ${newPegawai.length} data pegawai`, "success");
@@ -1478,7 +1509,21 @@ export default function App() {
                                         <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                                             <h3 className="font-bold text-slate-800">Konfigurasi Identitas Instansi / Sekolah</h3>
                                         </div>
-                                        <form onSubmit={(e) => { e.preventDefault(); showToast('Sukses','Konfigurasi tersimpan secara lokal','success'); }} className="p-6 space-y-6">
+                                        <form onSubmit={async (e) => { 
+                                            e.preventDefault(); 
+                                            const supabase = getSupabase();
+                                            if (isCloudConnected && supabase) {
+                                                const payload = { ...appSettings, id: '1' };
+                                                try {
+                                                    await supabase.from(SUPABASE_TABLE_SETTINGS).upsert(payload);
+                                                    showToast('Sukses','Konfigurasi tersimpan di Cloud dan Lokal','success');
+                                                } catch(err) {
+                                                    showToast('Lokal','Tersimpan lokal (Gagal ke Cloud)','warning');
+                                                }
+                                            } else {
+                                                showToast('Sukses','Konfigurasi tersimpan secara lokal','success'); 
+                                            }
+                                        }} className="p-6 space-y-6">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>
                                                     <label className="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Nama Sekolah / Instansi</label>
@@ -1830,10 +1875,18 @@ export default function App() {
 
             {activeModal === 'EDIT_PEGAWAI' && modalPayload && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[160] flex items-center justify-center p-4">
-                    <form onSubmit={e => {
+                    <form onSubmit={async e => {
                         e.preventDefault();
                         const id = modalPayload.id;
-                        setPegawaiList(prev => prev.map(p => p.id === id ? { ...p, nama: modalPayload.nama, jabatan: modalPayload.jabatan, telepon: modalPayload.telepon } : p));
+                        const updatedPegawai = { id, nama: modalPayload.nama, jabatan: modalPayload.jabatan, telepon: modalPayload.telepon };
+                        
+                        setPegawaiList(prev => prev.map(p => p.id === id ? updatedPegawai : p));
+                        
+                        const supabase = getSupabase();
+                        if (isCloudConnected && supabase) {
+                            await supabase.from(SUPABASE_TABLE_PEGAWAI).upsert(updatedPegawai);
+                        }
+                        
                         setActiveModal(null);
                         showToast('Sukses', 'Data pegawai diperbarui', 'success');
                     }} className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 animate-fade-in">
