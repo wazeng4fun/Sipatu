@@ -1,17 +1,17 @@
-name: Supabase Keep Alive Universal
+name: Supabase Keep Alive
 
 on:
   schedule:
     # Berjalan otomatis setiap hari jam 12:00 WIB (05:00 UTC)
     - cron: '0 5 * * *'
   workflow_dispatch: # Tombol manual di GitHub Actions
-
+  
 jobs:
   ping_db:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase API Root
+      - name: Ping Database Supabase
         run: |
-          curl -i -X GET "https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co/rest/v1/" \
+          curl -i -X GET "https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co/rest/v1/cuti_history?select=id" \
           -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
           -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
